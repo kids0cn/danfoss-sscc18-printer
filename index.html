@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>丹佛斯标签打印工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #0054a6, #0078d4);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .status-ok { background: #52c41a; color: white; }
+        .status-err { background: #ff4d4f; color: white; }
+        .status-warn { background: #faad14; color: #333; }
+
+        .container { max-width: 800px; margin: 24px auto; padding: 0 16px; }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title .icon { font-size: 20px; }
+
+        /* 扫码输入区 */
+        .scan-area {
+            position: relative;
+        }
+        .scan-input {
+            width: 100%;
+            height: 56px;
+            font-size: 22px;
+            padding: 0 16px;
+            border: 2px solid #0078d4;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            letter-spacing: 2px;
+        }
+        .scan-input:focus {
+            border-color: #0054a6;
+            box-shadow: 0 0 0 3px rgba(0,120,212,0.15);
+        }
+        .scan-input::placeholder {
+            color: #aaa;
+            letter-spacing: 0;
+            font-size: 16px;
+        }
+        .scan-hint {
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        /* 扫码历史 */
+        .scan-history {
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: #f7f8fa;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .history-item:hover { background: #e8f4fd; }
+        .history-item .code { font-family: monospace; font-size: 15px; font-weight: 500; }
+        .history-item .time { font-size: 12px; color: #999; }
+        .history-item .print-btn {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .history-item .print-btn:hover { background: #0054a6; }
+
+        /* 标签预览 */
+        .label-preview {
+            border: 2px dashed #d9d9d9;
+            border-radius: 8px;
+            padding: 16px;
+            background: #fafafa;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .label-canvas {
+            background: white;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        /* 打印设置 */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .setting-item label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+        .setting-item select,
+        .setting-item input {
+            height: 36px;
+            padding: 0 10px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+        .setting-item select:focus,
+        .setting-item input:focus {
+            border-color: #0078d4;
+        }
+
+        /* 操作按钮 */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .btn {
+            flex: 1;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #0078d4; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #0054a6; }
+        .btn-success { background: #52c41a; color: white; }
+        .btn-success:hover:not(:disabled) { background: #389e0d; }
+        .btn-default { background: #f0f0f0; color: #333; }
+        .btn-default:hover:not(:disabled) { background: #e0e0e0; }
+
+        /* ZPL 显示 */
+        .zpl-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: "Cascadia Code", "Fira Code", monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 8px;
+        }
+
+        /* 消息提示 */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 9999;
+            transition: opacity 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .toast-success { background: #52c41a; color: white; }
+        .toast-error { background: #ff4d4f; color: white; }
+        .toast-info { background: #0078d4; color: white; }
+
+        @media (max-width: 600px) {
+            .settings-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 17px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🖨️ 丹佛斯标签打印工具</h1>
+    <span id="printerStatus" class="status-badge status-warn">检测中...</span>
+</div>
+
+<div class="container">
+
+    <!-- 扫码区 -->
+    <div class="card">
+        <div class="card-title"><span class="icon">📷</span> 扫码录入</div>
+        <div class="scan-area">
+            <input type="text" id="scanInput" class="scan-input"
+                   placeholder="请扫描条码..." autofocus autocomplete="off">
+            <div class="scan-hint">扫描枪扫码后自动识别 · 回车也可触发打印</div>
+        </div>
+        <div id="scanHistory" class="scan-history" style="display:none;"></div>
+    </div>
+
+    <!-- 标签设置 -->
+    <div class="card">
+        <div class="card-title"><span class="icon">⚙️</span> 标签设置</div>
+        <div class="settings-grid">
+            <div class="setting-item">
+                <label>标签尺寸</label>
+                <select id="labelSize">
+                    <option value="40x30">40mm × 30mm</option>
+                    <option value="50x30" selected>50mm × 30mm</option>
+                    <option value="60x40">60mm × 40mm</option>
+                    <option value="80x50">80mm × 50mm</option>
+                    <option value="100x60">100mm × 60mm</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>打印份数</label>
+                <select id="printCopies">
+                    <option value="1" selected>1 份</option>
+                    <option value="2">2 份</option>
+                    <option value="3">3 份</option>
+                    <option value="5">5 份</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>上方文字 (可选)</label>
+                <input type="text" id="topText" placeholder="如: 丹佛斯 DCI">
+            </div>
+            <div class="setting-item">
+                <label>下方文字 (可选)</label>
+                <input type="text" id="bottomText" placeholder="如: 2026-09-06">
+            </div>
+        </div>
+
+        <!-- 标签预览 -->
+        <div style="margin-top: 16px;">
+            <label style="font-size:13px;color:#666;font-weight:500;">标签预览</label>
+            <div class="label-preview" id="labelPreview">
+                <canvas id="labelCanvas" class="label-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作区 -->
+    <div class="card">
+        <div class="card-title"><span class="icon">🖨️</span> 打印操作</div>
+        <div class="btn-group">
+            <button class="btn btn-primary" id="btnPrint" disabled onclick="doPrint()">
+                🖨️ 打印
+            </button>
+            <button class="btn btn-default" onclick="printTestLabel()">
+                📋 打印测试页
+            </button>
+        </div>
+        <div class="zpl-output" id="zplOutput" style="display:none;"></div>
+        <div style="margin-top:8px;text-align:right;">
+            <button class="btn btn-default" style="flex:none;width:auto;height:32px;font-size:12px;padding:0 12px;"
+                    onclick="toggleZpl()">查看 ZPL 指令</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 配置
+// ============================================================
+const BROWSER_PRINT_URL = 'http://127.0.0.1:9100';
+let currentDevice = null;   // BrowserPrint 返回的 device 对象
+let scanHistory = [];       // 扫码历史
+
+// ============================================================
+// 初始化：连接 BrowserPrint
+// ============================================================
+async function initPrinter() {
+    const statusEl = document.getElementById('printerStatus');
+    try {
+        const resp = await fetch(`${BROWSER_PRINT_URL}/default?type=printer`);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        currentDevice = await resp.json();
+        statusEl.textContent = '✅ 已连接: ' + currentDevice.name;
+        statusEl.className = 'status-badge status-ok';
+        document.getElementById('btnPrint').disabled = false;
+    } catch (e) {
+        statusEl.textContent = '❌ 未连接打印机';
+        statusEl.className = 'status-badge status-err';
+        console.error('BrowserPrint 连接失败:', e);
+    }
+}
+
+// ============================================================
+// 发送 ZPL 到打印机（直接 HTTP 方式）
+// ============================================================
+async function sendZpl(zpl) {
+    if (!currentDevice) throw new Error('打印机未连接');
+
+    const payload = {
+        device: currentDevice,
+        data: zpl
+    };
+
+    const resp = await fetch(`${BROWSER_PRINT_URL}/write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error('打印失败: ' + text);
+    }
+    return await resp.json();
+}
+
+// ============================================================
+// ZPL 生成器
+// ============================================================
+function generateZpl(options) {
+    const {
+        barcode = '',
+        topText = '',
+        bottomText = '',
+        labelWidth = 800,   // 点 (dots)  — 对应 50mm @ 203dpi
+        labelHeight = 600,  // 点 (dots)
+        barcodeHeight = 150 // 条码高度 (点)
+    } = options;
+
+    let zpl = '';
+
+    // 开始标签
+    zpl += '^XA\n';
+
+    // 中文支持
+    zpl += '^CI28\n';
+    zpl += '^JMA\n';
+    zpl += '^SEE:GB18030.DAT^FS\n';
+    zpl += '^CWZ,E:SIMSUN.FNT\n';
+
+    // 标签尺寸
+    zpl += '^LL' + labelHeight + '\n';
+    zpl += '^PW' + labelWidth + '\n';
+
+    // 上方文字
+    if (topText) {
+        const fontSize = labelWidth > 800 ? 28 : 22;
+        const x = labelWidth / 2 - (topText.length * fontSize) / 2;
+        zpl += '^FO' + Math.round(x) + ',20\n';
+        zpl += '^A0,N' + fontSize + '\n';
+        zpl += '^FD' + topText + '^FS\n';
+    }
+
+    // 一维条码 (Code 128)
+    if (barcode) {
+        const barcodeY = topText ? 60 : 30;
+        const barcodeX = Math.max(20, (labelWidth - 400) / 2);
+        zpl += '^FO' + Math.round(barcodeX) + ',' + barcodeY + '\n';
+        zpl += '^BY3\n';
+        zpl += '^BCN,' + barcodeHeight + ',Y,N,N\n';
+        zpl += '^FD' + barcode + '^FS\n';
+
+        // 条码下方显示条码数字
+        const textY = barcodeY + barcodeHeight + 10;
+        const textSize = 20;
+        const textX = labelWidth / 2 - (barcode.length * textSize * 0.6) / 2;
+        zpl += '^FO' + Math.round(textX) + ',' + textY + '\n';
+        zpl += '^A0,N' + textSize + '\n';
+        zpl += '^FD' + barcode + '^FS\n';
+    }
+
+    // 下方文字（默认显示当前日期时间）
+    const displayBottom = bottomText || getDefaultDate();
+    if (displayBottom) {
+        const textSize = 18;
+        const textX = labelWidth / 2 - (displayBottom.length * textSize * 0.6) / 2;
+        const textY = topText
+            ? 60 + barcodeHeight + 40
+            : 30 + barcodeHeight + 40;
+        zpl += '^FO' + Math.round(textX) + ',' + textY + '\n';
+        zpl += '^A0,N' + textSize + '\n';
+        zpl += '^FD' + displayBottom + '^FS\n';
+    }
+
+    // 结束标签
+    zpl += '^XZ\n';
+    return zpl;
+}
+
+function getDefaultDate() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}`;
+}
+
+// 按标签尺寸生成配置
+function getLabelConfig() {
+    const size = document.getElementById('labelSize').value;
+    const [w, h] = size.split('x').map(Number);
+    // mm → dots (203 dpi ≈ 8 dots/mm)
+    const dotsPerMm = 8;
+    return {
+        labelWidth: Math.round(w * dotsPerMm),
+        labelHeight: Math.round(h * dotsPerMm),
+        barcodeHeight: Math.min(120, Math.round(h * dotsPerMm * 0.4))
+    };
+}
+
+// ============================================================
+// 标签预览（Canvas 绘制）
+// ============================================================
+function updatePreview() {
+    const barcode = document.getElementById('scanInput').value.trim();
+    const topText = document.getElementById('topText').value.trim();
+    const bottomText = document.getElementById('bottomText').value.trim();
+    const size = document.getElementById('labelSize').value;
+    const [w, h] = size.split('x').map(Number);
+
+    const canvas = document.getElementById('labelCanvas');
+    const scale = 3;  // 放大倍数
+    canvas.width = w * scale;
+    canvas.height = h * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    // 白底
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+
+    let y = 0;
+
+    // 上方文字
+    if (topText) {
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(topText, w / 2, 14);
+        y = 22;
+    } else {
+        y = 10;
+    }
+
+    // 条码区域（用竖线模拟）
+    if (barcode) {
+        const barcodeH = Math.min(16, h * 0.4);
+        const barcodeY = y + 2;
+        const barcodeW = Math.min(w - 10, 40);
+        const bx = (w - barcodeW) / 2;
+
+        // 绘制简化的条码
+        ctx.fillStyle = '#000';
+        const barWidth = barcodeW / (barcode.length * 2 + 1);
+        let bxPos = bx;
+        for (let i = 0; i < barcode.length; i++) {
+            const code = barcode.charCodeAt(i);
+            // 简单哈希生成不同宽度的条
+            const bw = ((code % 3) + 1) * barWidth;
+            if (i % 2 === 0) {
+                ctx.fillRect(bxPos, barcodeY, bw, barcodeH);
+            }
+            bxPos += bw + barWidth * 0.5;
+        }
+
+        // 条码数字
+        ctx.fillStyle = '#000';
+        ctx.font = '8px monospace';
+        ctx.fillText(barcode, w / 2, barcodeY + barcodeH + 10);
+
+        y = barcodeY + barcodeH + 16;
+    }
+
+    // 下方文字
+    const displayBottom = bottomText || getDefaultDate();
+    ctx.fillStyle = '#666';
+    ctx.font = '7px sans-serif';
+    ctx.fillText(displayBottom, w / 2, Math.min(y + 8, h - 4));
+
+    ctx.scale(1/scale, 1/scale);
+}
+
+// ============================================================
+// 打印操作
+// ============================================================
+async function doPrint() {
+    const barcode = document.getElementById('scanInput').value.trim();
+    if (!barcode) {
+        showToast('请先扫码或输入条码', 'error');
+        return;
+    }
+    if (!currentDevice) {
+        showToast('打印机未连接，请检查 BrowserPrint', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnPrint');
+    btn.disabled = true;
+    btn.textContent = '⏳ 打印中...';
+
+    try {
+        const config = getLabelConfig();
+        const topText = document.getElementById('topText').value.trim();
+        const bottomText = document.getElementById('bottomText').value.trim();
+        const copies = parseInt(document.getElementById('printCopies').value) || 1;
+
+        const zpl = generateZpl({
+            barcode,
+            topText,
+            bottomText,
+            ...config
+        });
+
+        // 打印指定份数
+        for (let i = 0; i < copies; i++) {
+            await sendZpl(zpl);
+        }
+
+        // 记录到历史
+        addHistory(barcode);
+
+        showToast(`✅ 打印成功 (${copies}份)`, 'success');
+
+        // 清空输入，准备下次扫码
+        document.getElementById('scanInput').value = '';
+        updatePreview();
+    } catch (e) {
+        showToast('打印失败: ' + e.message, 'error');
+        console.error(e);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🖨️ 打印';
+    }
+}
+
+// 打印测试标签
+async function printTestLabel() {
+    if (!currentDevice) {
+        showToast('打印机未连接', 'error');
+        return;
+    }
+    try {
+        const config = getLabelConfig();
+        const zpl = generateZpl({
+            barcode: 'TEST-2026-0906',
+            topText: '丹佛斯 DCI',
+            bottomText: getDefaultDate(),
+            ...config
+        });
+        await sendZpl(zpl);
+        showToast('✅ 测试标签已打印', 'success');
+    } catch (e) {
+        showToast('测试打印失败: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+// 扫码处理
+// ============================================================
+function handleScan(code) {
+    if (!code) return;
+
+    document.getElementById('scanInput').value = code;
+    updatePreview();
+
+    // 如果打印机就绪，直接打印
+    if (currentDevice) {
+        doPrint();
+    } else {
+        showToast('条码已识别，请连接打印机后打印', 'info');
+    }
+}
+
+// 扫码历史
+function addHistory(code) {
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    scanHistory.unshift({ code, time });
+    if (scanHistory.length > 20) scanHistory.pop();
+    renderHistory();
+}
+
+function renderHistory() {
+    const container = document.getElementById('scanHistory');
+    if (scanHistory.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'block';
+    container.innerHTML = scanHistory.map((item, i) => `
+        <div class="history-item" onclick="reprintHistory('${item.code}')">
+            <span class="code">${item.code}</span>
+            <span class="time">${item.time}</span>
+            <button class="print-btn" onclick="event.stopPropagation(); reprintHistory('${item.code}')">重打</button>
+        </div>
+    `).join('');
+}
+
+function reprintHistory(code) {
+    document.getElementById('scanInput').value = code;
+    updatePreview();
+    doPrint();
+}
+
+// ============================================================
+// 工具函数
+// ============================================================
+function showToast(msg, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+    setTimeout(() => { toast.remove(); }, 3000);
+}
+
+function toggleZpl() {
+    const el = document.getElementById('zplOutput');
+    if (el.style.display === 'none') {
+        const barcode = document.getElementById('scanInput').value.trim() || 'EXAMPLE-12345';
+        const config = getLabelConfig();
+        const zpl = generateZpl({
+            barcode,
+            topText: document.getElementById('topText').value.trim(),
+            bottomText: document.getElementById('bottomText').value.trim(),
+            ...config
+        });
+        el.textContent = zpl;
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+// ============================================================
+// 事件绑定
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    // 初始化打印机
+    initPrinter();
+
+    // 扫码输入事件
+    const scanInput = document.getElementById('scanInput');
+
+    // 回车触发打印
+    scanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const code = scanInput.value.trim();
+            if (code) handleScan(code);
+        }
+    });
+
+    // 输入变化更新预览
+    scanInput.addEventListener('input', () => {
+        updatePreview();
+    });
+
+    // 标签设置变化更新预览
+    document.getElementById('labelSize').addEventListener('change', updatePreview);
+    document.getElementById('topText').addEventListener('input', updatePreview);
+    document.getElementById('bottomText').addEventListener('input', updatePreview);
+
+    // 初始预览
+    updatePreview();
+
+    // 确保扫码框始终获得焦点（方便连续扫码）
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('button') && !e.target.closest('select') && !e.target.closest('input')) {
+            scanInput.focus();
+        }
+    });
+});
+</script>
+</body>
+</html>
