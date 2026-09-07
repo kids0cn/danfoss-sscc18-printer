@@ -4,340 +4,274 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SSCC-18 标签打印工具</title>
-    <script type="text/javascript" src="assets/BrowserPrint-3.0.216.min.js"></script>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/bootstrap-icons.min.css">
+    <script src="assets/BrowserPrint-3.0.216.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
-            background: #f0f2f5;
-            min-height: 100vh;
-        }
-        .header {
-            background: #e60000;
-            color: white;
-            padding: 12px 24px;
+        :root { --df-red: #e60000; --df-red-dark: #c00; }
+        body { background: #f5f5f5; min-height: 100vh; }
+
+        /* ===== Header ===== */
+        .app-header {
+            background: var(--df-red);
+            color: #fff;
+            padding: 0 20px;
+            height: 56px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 6px rgba(0,0,0,.15);
+            position: sticky; top: 0; z-index: 100;
         }
-        .header-left { display: flex; align-items: center; gap: 16px; }
-        .header img { height: 32px; }
-        .header h1 { font-size: 18px; font-weight: 500; letter-spacing: 0.5px; }
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 500;
+        .app-header .left { display: flex; align-items: center; gap: 12px; }
+        .app-header img { height: 28px; }
+        .app-header h1 { font-size: 16px; font-weight: 500; margin: 0; }
+        .app-header .right { display: flex; align-items: center; gap: 12px; }
+        .btn-icon {
+            background: none; border: none; color: #fff;
+            font-size: 20px; cursor: pointer; padding: 4px 8px;
+            border-radius: 6px; transition: background .15s;
         }
-        .status-ok { background: #52c41a; color: white; }
-        .status-err { background: #ff4d4f; color: white; }
-        .status-warn { background: #faad14; color: #333; }
+        .btn-icon:hover { background: rgba(255,255,255,.15); }
 
-        .container { max-width: 700px; margin: 24px auto; padding: 0 16px; }
-        .card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        /* ===== Status badge ===== */
+        .badge-status {
+            padding: 3px 10px; border-radius: 10px;
+            font-size: 12px; font-weight: 500;
         }
-        .card-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #eee;
-        }
+        .badge-ok { background: #52c41a; color: #fff; }
+        .badge-err { background: #ff4d4f; color: #fff; }
+        .badge-warn { background: #faad14; color: #333; }
 
-        /* 扫码输入 */
+        /* ===== Main content ===== */
+        .main { max-width: 640px; margin: 0 auto; padding: 16px; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* ===== Scan input ===== */
+        .scan-box {
+            background: #fff; border-radius: 12px;
+            padding: 24px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            margin-bottom: 16px;
+        }
         .scan-input {
-            width: 100%;
-            height: 56px;
-            font-size: 22px;
-            padding: 0 16px;
-            border: 2px solid #e60000;
-            border-radius: 8px;
-            outline: none;
-            letter-spacing: 2px;
-            font-family: monospace;
+            width: 100%; height: 60px;
+            font-size: 24px; font-family: 'Consolas', monospace;
+            padding: 0 16px; letter-spacing: 2px;
+            border: 2px solid #ddd; border-radius: 10px;
+            outline: none; transition: border-color .2s, box-shadow .2s;
         }
         .scan-input:focus {
-            border-color: #bf360c;
-            box-shadow: 0 0 0 3px rgba(230,0,0,0.15);
+            border-color: var(--df-red);
+            box-shadow: 0 0 0 3px rgba(230,0,0,.12);
         }
-        .scan-input::placeholder { color: #aaa; letter-spacing: 0; font-size: 16px; }
+        .scan-input::placeholder { color: #bbb; letter-spacing: 0; font-size: 15px; font-family: inherit; }
+        .scan-hint { text-align: center; color: #aaa; font-size: 12px; margin-top: 8px; }
 
-        /* 验证结果 */
-        .validate-result {
-            margin-top: 12px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            display: none;
+        /* ===== Validation ===== */
+        .validate-msg {
+            margin-top: 10px; padding: 10px 14px;
+            border-radius: 8px; font-size: 13px; display: none;
         }
-        .validate-pass { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
-        .validate-fail { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
-        .validate-info { background: #e6f7ff; border: 1px solid #91d5ff; color: #096dd9; }
+        .v-pass { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+        .v-fail { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+        .v-detail {
+            display: grid; grid-template-columns: 80px 1fr;
+            gap: 4px 10px; margin-top: 6px; font-size: 12px;
+        }
+        .v-detail .lbl { color: #999; text-align: right; }
+        .v-detail .val { font-family: monospace; font-weight: 500; }
 
-        /* 解析详情 */
-        .detail-grid {
-            display: grid;
-            grid-template-columns: 100px 1fr;
-            gap: 6px 12px;
-            margin-top: 8px;
+        /* ===== History ===== */
+        .history-box {
+            background: #fff; border-radius: 12px;
+            padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+        }
+        .history-title {
+            font-size: 14px; font-weight: 600; color: #333;
+            margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+        }
+        .history-title .count {
+            background: var(--df-red); color: #fff;
+            font-size: 11px; padding: 1px 7px;
+            border-radius: 8px; font-weight: 500;
+        }
+        .history-empty { color: #bbb; font-size: 13px; text-align: center; padding: 20px 0; }
+        .history-list { max-height: 360px; overflow-y: auto; }
+        .history-row {
+            display: grid; grid-template-columns: 70px 1fr auto;
+            gap: 8px; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid #f5f5f5;
             font-size: 13px;
         }
-        .detail-grid .label { color: #999; text-align: right; }
-        .detail-grid .value { font-family: monospace; font-weight: 500; }
-        .detail-grid .highlight { color: #e65100; font-weight: 700; }
+        .history-row:last-child { border-bottom: none; }
+        .history-row .time { color: #999; font-size: 12px; }
+        .history-row .code { font-family: monospace; font-weight: 500; word-break: break-all; }
+        .history-row .reprint {
+            background: none; border: 1px solid #ddd; color: #666;
+            padding: 2px 8px; border-radius: 4px; font-size: 11px;
+            cursor: pointer; white-space: nowrap;
+        }
+        .history-row .reprint:hover { border-color: var(--df-red); color: var(--df-red); }
 
-        /* 按钮 */
-        .btn-group { display: flex; gap: 12px; margin-top: 16px; }
-        .btn {
-            flex: 1;
-            height: 44px;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
+        /* ===== Settings page ===== */
+        .settings-card {
+            background: #fff; border-radius: 12px;
+            padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            margin-bottom: 16px;
         }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background: #e60000; color: white; }
-        .btn-primary:hover:not(:disabled) { background: #c00; }
-        .btn-default { background: #f0f0f0; color: #333; }
-        .btn-default:hover:not(:disabled) { background: #e0e0e0; }
+        .settings-card h6 {
+            font-size: 14px; font-weight: 600; color: #333;
+            margin-bottom: 14px; padding-bottom: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .form-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 12px; margin-bottom: 12px;
+        }
+        .form-row.single { grid-template-columns: 1fr; }
+        .form-group label { font-size: 12px; color: #888; font-weight: 500; display: block; margin-bottom: 4px; }
+        .form-group select,
+        .form-group input {
+            width: 100%; height: 36px; padding: 0 10px;
+            border: 1px solid #ddd; border-radius: 6px;
+            font-size: 13px; outline: none; background: #fff;
+        }
+        .form-group select:focus,
+        .form-group input:focus { border-color: var(--df-red); }
+        .form-check { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .form-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--df-red); }
 
-        /* ZPL */
-        .zpl-output {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            word-break: break-all;
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 8px;
-            display: none;
+        .btn-save {
+            width: 100%; height: 44px; border: none; border-radius: 8px;
+            background: var(--df-red); color: #fff;
+            font-size: 15px; font-weight: 600; cursor: pointer;
         }
+        .btn-save:hover { background: var(--df-red-dark); }
 
-        /* 规则说明 */
-        .rule-box {
-            background: #fffbe6;
-            border: 1px solid #ffe58f;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 13px;
-            line-height: 1.8;
-            color: #614700;
-        }
-        .rule-box code {
-            background: #fff1b8;
-            padding: 1px 6px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
+        .custom-size-row { display: none; gap: 6px; align-items: center; }
+        .custom-size-row.show { display: flex; }
+        .custom-size-row input { width: 60px; }
 
-        /* 设置面板 */
-        .settings-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+        /* ===== Toast ===== */
+        .toast-msg {
+            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+            padding: 8px 20px; border-radius: 8px;
+            font-size: 13px; font-weight: 500; z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,.15);
+            animation: fadeIn .2s;
         }
-        .setting-item { display: flex; flex-direction: column; gap: 4px; }
-        .setting-item label { font-size: 13px; color: #666; font-weight: 500; }
-        .setting-item select,
-        .setting-item input[type="text"],
-        .setting-item input[type="number"] {
-            height: 36px;
-            padding: 0 10px;
-            border: 1px solid #d9d9d9;
-            border-radius: 6px;
-            font-size: 14px;
-            outline: none;
-        }
-        .setting-item select:focus,
-        .setting-item input:focus { border-color: #e60000; }
-        .setting-row { display: flex; gap: 16px; align-items: center; margin-top: 8px; }
-        .setting-row label { font-size: 13px; color: #666; white-space: nowrap; }
-        .setting-row input[type="range"] { flex: 1; }
-        .setting-row .range-val { font-size: 13px; color: #999; min-width: 50px; font-family: monospace; }
+        @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+        .t-ok { background: #52c41a; color: #fff; }
+        .t-err { background: #ff4d4f; color: #fff; }
+        .t-info { background: #0078d4; color: #fff; }
 
-        /* Toast */
-        .toast {
-            position: fixed;
-            top: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            z-index: 9999;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transition: opacity 0.3s;
+        /* ===== Print button (manual mode) ===== */
+        .btn-print {
+            width: 100%; height: 48px; border: none; border-radius: 10px;
+            background: var(--df-red); color: #fff;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            margin-top: 12px; display: none;
         }
-        .toast-success { background: #52c41a; color: white; }
-        .toast-error { background: #ff4d4f; color: white; }
-        .toast-info { background: #0078d4; color: white; }
+        .btn-print:hover:not(:disabled) { background: var(--df-red-dark); }
+        .btn-print:disabled { opacity: .4; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div class="header-left">
+<!-- ========== HEADER ========== -->
+<div class="app-header">
+    <div class="left">
         <img src="assets/new-logo-danfoss.png" alt="Danfoss">
-        <h1>SSCC-18 标签打印工具</h1>
+        <h1>SSCC-18 标签打印</h1>
     </div>
-    <span id="printerStatus" class="status-badge status-warn">检测中...</span>
+    <div class="right">
+        <span id="printerStatus" class="badge-status badge-warn">检测中...</span>
+        <button class="btn-icon" onclick="togglePage('scan')" id="btnScanTab" title="扫码"><i class="bi bi-upc-scan"></i></button>
+        <button class="btn-icon" onclick="togglePage('settings')" id="btnSettingTab" title="设置"><i class="bi bi-gear"></i></button>
+    </div>
 </div>
 
-<div class="container">
+<!-- ========== MAIN ========== -->
+<div class="main">
 
-    <!-- 规则说明 -->
-    <div class="card">
-        <div class="card-title">📖 SSCC-18 编码规则</div>
-        <div class="rule-box">
-            SSCC-18 = <code>1位扩展</code> + <code>7-10位公司前缀</code> + <code>6-9位序列号</code> + <code>1位校验码</code> = <strong>共18位数字</strong><br>
-            • 条码类型：GS1-128（Application Identifier = <code>00</code>）<br>
-            • 第18位为 Mod-10 校验码，由前17位计算<br>
-            • 人可读格式：<code>(00) 1 2345678 901234567 8</code>
+    <!-- ===== 扫码页 ===== -->
+    <div class="page active" id="page-scan">
+        <div class="scan-box">
+            <input type="text" id="scanInput" class="scan-input"
+                   placeholder="请扫描 SSCC-18 条码..." autofocus autocomplete="off" maxlength="20">
+            <div class="scan-hint">扫描枪扫码后自动识别并打印</div>
+            <div id="validateMsg" class="validate-msg"></div>
+            <button class="btn-print" id="btnPrint" onclick="doPrint()">🖨️ 打印此标签</button>
+        </div>
+
+        <div class="history-box">
+            <div class="history-title">
+                <i class="bi bi-clock-history"></i> 今日扫码记录
+                <span class="count" id="historyCount">0</span>
+            </div>
+            <div id="historyList">
+                <div class="history-empty">暂无扫码记录</div>
+            </div>
         </div>
     </div>
 
-    <!-- 打印设置 -->
-    <div class="card">
-        <div class="card-title">⚙️ 打印设置</div>
+    <!-- ===== 设置页 ===== -->
+    <div class="page" id="page-settings">
 
-        <div class="settings-grid">
-            <div class="setting-item">
-                <label>标签尺寸 (mm)</label>
-                <select id="labelSize">
-                    <option value="102x63" selected>102 × 63 mm</option>
-                    <option value="100x60">100 × 60 mm</option>
-                    <option value="80x50">80 × 50 mm</option>
-                    <option value="50x30">50 × 30 mm</option>
-                    <option value="40x30">40 × 30 mm</option>
-                    <option value="custom">自定义...</option>
-                </select>
-            </div>
-            <div class="setting-item" id="customSizeWrap" style="display:none;">
-                <label>自定义宽×高 (mm)</label>
-                <div style="display:flex;gap:6px;">
-                    <input type="number" id="customW" value="102" min="20" max="200" style="width:60px;">
-                    <span style="line-height:36px;">×</span>
-                    <input type="number" id="customH" value="63" min="20" max="200" style="width:60px;">
-                </div>
-            </div>
-            <div class="setting-item">
-                <label>打印方向</label>
-                <select id="orientation">
-                    <option value="landscape">横向 (102宽×63高)</option>
-                    <option value="portrait">纵向 (63宽×102高)</option>
-                </select>
-            </div>
-            <div class="setting-item">
-                <label>打印浓度</label>
-                <select id="density">
-                    <option value="8">8 (浅)</option>
-                    <option value="12">12 (正常)</option>
-                    <option value="16" selected>16 (标准)</option>
-                    <option value="20">20 (深)</option>
-                    <option value="25">25 (很深)</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- 条码设置 -->
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;">
-            <div style="font-size:14px;font-weight:500;margin-bottom:10px;">📏 条码位置与大小</div>
-            <div class="settings-grid">
-                <div class="setting-item">
-                    <label>条码高度 (mm)</label>
-                    <input type="number" id="barcodeHeight" value="25" min="5" max="80" step="1">
-                </div>
-                <div class="setting-item">
-                    <label>条码宽度倍数 (BY)</label>
-                    <select id="barcodeWidth">
-                        <option value="1">1 (最窄)</option>
-                        <option value="2">2</option>
-                        <option value="3" selected>3 (标准)</option>
-                        <option value="4">4</option>
-                        <option value="5">5 (最宽)</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label>条码 X 偏移 (dots)</label>
-                    <input type="number" id="barcodeX" value="20" min="0" max="800" step="10">
-                </div>
-                <div class="setting-item">
-                    <label>条码 Y 偏移 (dots)</label>
-                    <input type="number" id="barcodeY" value="50" min="0" max="800" step="10">
+        <div class="settings-card">
+            <h6><i class="bi bi-printer"></i> 打印模式</h6>
+            <div class="form-row single">
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" id="autoPrint" checked>
+                        <label for="autoPrint" style="font-size:13px;color:#333;margin:0;">扫码后自动打印（关闭则需手动点击打印按钮）</label>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 文字设置 -->
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;">
-            <div style="font-size:14px;font-weight:500;margin-bottom:10px;">🔤 文字设置</div>
-            <div class="settings-grid">
-                <div class="setting-item">
-                    <label>顶部标题</label>
-                    <input type="text" id="topText" placeholder="如: SSCC-18 标签">
-                </div>
-                <div class="setting-item">
-                    <label>标题字号</label>
-                    <select id="topFontSize">
-                        <option value="18">18</option>
-                        <option value="22" selected>22</option>
-                        <option value="28">28</option>
-                        <option value="36">36</option>
+        <div class="settings-card">
+            <h6><i class="bi bi-tag"></i> 标签设置</h6>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>标签尺寸 (mm)</label>
+                    <select id="labelSize">
+                        <option value="102x63" selected>102 × 63</option>
+                        <option value="100x60">100 × 60</option>
+                        <option value="80x50">80 × 50</option>
+                        <option value="50x30">50 × 30</option>
+                        <option value="custom">自定义</option>
                     </select>
                 </div>
-                <div class="setting-item">
-                    <label>人可读字号</label>
-                    <select id="hrFontSize">
-                        <option value="14">14</option>
-                        <option value="18" selected>18</option>
-                        <option value="22">22</option>
-                        <option value="28">28</option>
-                    </select>
+                <div class="form-group" id="customSizeGroup" style="display:none;">
+                    <label>自定义宽×高 (mm)</label>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input type="number" id="customW" value="102" min="20" max="200" style="width:60px;">
+                        <span>×</span>
+                        <input type="number" id="customH" value="63" min="20" max="200" style="width:60px;">
+                    </div>
                 </div>
-                <div class="setting-item">
-                    <label>日期字号</label>
-                    <select id="dateFontSize">
-                        <option value="14">14</option>
-                        <option value="16" selected>16</option>
-                        <option value="20">20</option>
-                    </select>
-                </div>
-                <div class="setting-item">
-                    <label>文字 Y 偏移 (dots)</label>
-                    <input type="number" id="textYOffset" value="0" min="-200" max="400" step="5">
-                </div>
-                <div class="setting-item">
-                    <label>日期显示</label>
-                    <select id="showDate">
-                        <option value="yes" selected>显示</option>
-                        <option value="no">不显示</option>
+                <div class="form-group">
+                    <label>打印方向</label>
+                    <select id="orientation">
+                        <option value="landscape" selected>横向</option>
+                        <option value="portrait">纵向</option>
                     </select>
                 </div>
             </div>
-        </div>
-
-        <!-- 打印份数 -->
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;">
-            <div class="settings-grid">
-                <div class="setting-item">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>打印浓度</label>
+                    <select id="density">
+                        <option value="8">8 (浅)</option>
+                        <option value="12">12 (正常)</option>
+                        <option value="16" selected>16 (标准)</option>
+                        <option value="20">20 (深)</option>
+                        <option value="25">25 (很深)</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>打印份数</label>
                     <select id="printCopies">
                         <option value="1" selected>1 份</option>
@@ -348,368 +282,345 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- 扫码区 -->
-    <div class="card">
-        <div class="card-title">📷 扫码验证</div>
-        <input type="text" id="scanInput" class="scan-input"
-               placeholder="扫码枪扫描（自动识别20位/18位）..." autofocus autocomplete="off"
-               maxlength="20">
-        <div id="validateResult" class="validate-result"></div>
-
-        <div class="btn-group">
-            <button class="btn btn-primary" id="btnPrint" disabled onclick="doPrint()">
-                🖨️ 打印此标签
-            </button>
-            <button class="btn btn-default" onclick="printTestLabel()">
-                📋 打印测试标签
-            </button>
+        <div class="settings-card">
+            <h6><i class="bi bi-barcode"></i> 条码设置</h6>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>条码高度 (mm)</label>
+                    <input type="number" id="barcodeHeight" value="25" min="5" max="80">
+                </div>
+                <div class="form-group">
+                    <label>条码宽度倍数</label>
+                    <select id="barcodeWidth">
+                        <option value="1">1 (窄)</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3 (标准)</option>
+                        <option value="4">4</option>
+                        <option value="5">5 (宽)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>X 偏移 (dots)</label>
+                    <input type="number" id="barcodeX" value="20" min="0" max="800" step="10">
+                </div>
+                <div class="form-group">
+                    <label>Y 偏移 (dots)</label>
+                    <input type="number" id="barcodeY" value="50" min="0" max="800" step="10">
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- ZPL -->
-    <div class="card">
-        <button class="btn btn-default" style="width:100%;" onclick="toggleZpl()">查看 ZPL 指令</button>
-        <div class="zpl-output" id="zplOutput"></div>
+        <div class="settings-card">
+            <h6><i class="bi bi-fonts"></i> 文字设置</h6>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>顶部标题</label>
+                    <input type="text" id="topText" placeholder="如: SSCC-18 标签">
+                </div>
+                <div class="form-group">
+                    <label>标题字号</label>
+                    <select id="topFontSize">
+                        <option value="18">18</option>
+                        <option value="22" selected>22</option>
+                        <option value="28">28</option>
+                        <option value="36">36</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>人可读字号</label>
+                    <select id="hrFontSize">
+                        <option value="14">14</option>
+                        <option value="18" selected>18</option>
+                        <option value="22">22</option>
+                        <option value="28">28</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>日期字号</label>
+                    <select id="dateFontSize">
+                        <option value="14">14</option>
+                        <option value="16" selected>16</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>文字 Y 偏移 (dots)</label>
+                    <input type="number" id="textYOffset" value="0" min="-200" max="400" step="5">
+                </div>
+                <div class="form-group">
+                    <label>日期显示</label>
+                    <select id="showDate">
+                        <option value="yes" selected>显示</option>
+                        <option value="no">不显示</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-save" onclick="saveSettings()">💾 保存设置</button>
+        <div style="height:20px;"></div>
     </div>
 </div>
 
 <script>
 // ============================================================
-// 自动识别：扫码枪扫出的20位码 → 提取18位SSCC-18
+// 设置 localStorage
+// ============================================================
+const SETTINGS_KEY = 'sscc18_settings';
+const HISTORY_KEY_PREFIX = 'sscc18_history_';
+
+const defaultSettings = {
+    autoPrint: true,
+    labelSize: '102x63', customW: 102, customH: 63,
+    orientation: 'landscape', density: '16', printCopies: '1',
+    barcodeHeight: '25', barcodeWidth: '3', barcodeX: '20', barcodeY: '50',
+    topText: '', topFontSize: '22', hrFontSize: '18', dateFontSize: '16',
+    textYOffset: '0', showDate: 'yes'
+};
+
+function loadSettings() {
+    try { return { ...defaultSettings, ...JSON.parse(localStorage.getItem(SETTINGS_KEY)) }; }
+    catch { return { ...defaultSettings }; }
+}
+
+function getSettings() {
+    const s = loadSettings();
+    const DOTS = 8;
+    let lw, lh;
+    if (s.labelSize === 'custom') { lw = Number(s.customW)||102; lh = Number(s.customH)||63; }
+    else { [lw, lh] = s.labelSize.split('x').map(Number); }
+    if (s.orientation === 'portrait') [lw, lh] = [lh, lw];
+    return {
+        ...s,
+        labelW: lw, labelH: lh,
+        labelWidthDots: Math.round(lw * DOTS), labelHeightDots: Math.round(lh * DOTS),
+        bcHeightDots: Math.round((Number(s.barcodeHeight)||25) * DOTS),
+        bcWidth: Number(s.barcodeWidth)||3, bcX: Number(s.barcodeX)||20, bcY: Number(s.barcodeY)||50,
+        topFontSize: Number(s.topFontSize)||22, hrFontSize: Number(s.hrFontSize)||18,
+        dateFontSize: Number(s.dateFontSize)||16, textYOffset: Number(s.textYOffset)||0,
+        copies: Number(s.printCopies)||1
+    };
+}
+
+function saveSettings() {
+    const fields = ['autoPrint','labelSize','customW','customH','orientation','density','printCopies',
+        'barcodeHeight','barcodeWidth','barcodeX','barcodeY',
+        'topText','topFontSize','hrFontSize','dateFontSize','textYOffset','showDate'];
+    const data = {};
+    fields.forEach(id => { const el = document.getElementById(id); data[id] = el.type === 'checkbox' ? el.checked : el.value; });
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+    showToast('✅ 设置已保存', 'ok');
+}
+
+function applySettings() {
+    const s = loadSettings();
+    Object.keys(s).forEach(k => {
+        const el = document.getElementById(k);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!s[k];
+        else el.value = s[k];
+    });
+    document.getElementById('customSizeGroup').style.display = s.labelSize === 'custom' ? 'block' : 'none';
+    document.getElementById('btnPrint').style.display = s.autoPrint ? 'none' : 'block';
+}
+
+// ============================================================
+// 今日历史
+// ============================================================
+function todayKey() { return new Date().toISOString().slice(0, 10); }
+
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY_PREFIX + todayKey())) || []; }
+    catch { return []; }
+}
+
+function saveHistory(list) {
+    localStorage.setItem(HISTORY_KEY_PREFIX + todayKey(), JSON.stringify(list));
+}
+
+function addHistory(code) {
+    const list = loadHistory();
+    const now = new Date();
+    const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    list.unshift({ time, code });
+    if (list.length > 50) list.pop();
+    saveHistory(list);
+    renderHistory();
+}
+
+function renderHistory() {
+    const list = loadHistory();
+    const el = document.getElementById('historyList');
+    const cnt = document.getElementById('historyCount');
+    cnt.textContent = list.length;
+    if (!list.length) { el.innerHTML = '<div class="history-empty">暂无扫码记录</div>'; return; }
+    el.innerHTML = '<div class="history-list">' + list.map(item =>
+        `<div class="history-row">
+            <span class="time">${item.time}</span>
+            <span class="code">${item.code}</span>
+            <button class="reprint" onclick="reprint('${item.code.replace(/'/g,"\\'")}')">重打</button>
+        </div>`
+    ).join('') + '</div>';
+}
+
+function reprint(code) {
+    document.getElementById('scanInput').value = code;
+    doPrint();
+}
+
+// ============================================================
+// SSCC-18 逻辑（沿用已有代码）
 // ============================================================
 function normalizeScanInput(raw) {
-    const trimmed = raw.trim();
-
-    // 情况1：20位纯数字，且前2位是 "00" → 去掉AI前缀，取后18位
-    if (/^\d{20}$/.test(trimmed) && trimmed.substring(0, 2) === '00') {
-        return { code: trimmed.substring(2), ai: '00', source: trimmed };
-    }
-
-    // 情况2：已经是18位纯数字 → 直接用
-    if (/^\d{18}$/.test(trimmed)) {
-        return { code: trimmed, ai: '00', source: trimmed };
-    }
-
-    // 其他情况：原样返回，交给验证函数报错
-    return { code: trimmed, ai: null, source: trimmed };
+    const t = raw.trim();
+    if (/^\d{20}$/.test(t) && t.startsWith('00')) return { code: t.slice(2), ai: '00', source: t };
+    if (/^\d{18}$/.test(t)) return { code: t, ai: '00', source: t };
+    return { code: t, ai: null, source: t };
 }
 
-// ============================================================
-// SSCC-18 校验算法 (Mod-10)
-// ============================================================
-function sscc18CalcCheckDigit(digits17) {
-    // digits17: 17位字符串
+function sscc18CalcCheckDigit(d17) {
     let sum = 0;
-    for (let i = 0; i < 17; i++) {
-        const d = parseInt(digits17[i]);
-        // 奇数位(第1,3,5...即i=0,2,4...) × 3，偶数位 × 1
-        sum += (i % 2 === 0) ? d * 3 : d * 1;
-    }
-    const remainder = sum % 10;
-    return remainder === 0 ? 0 : 10 - remainder;
+    for (let i = 0; i < 17; i++) sum += (i % 2 === 0 ? 3 : 1) * parseInt(d17[i]);
+    return sum % 10 === 0 ? 0 : 10 - sum % 10;
 }
 
-// 验证 SSCC-18
 function validateSSCC18(code) {
-    const trimmed = code.trim();
-
-    // 检查是否全是数字
-    if (!/^\d+$/.test(trimmed)) {
-        return { valid: false, msg: '❌ SSCC-18 必须全部是数字', type: 'fail' };
-    }
-
-    // 检查长度
-    if (trimmed.length !== 18) {
-        return { valid: false, msg: `❌ 长度不正确：${trimmed.length}位（需要18位）`, type: 'fail' };
-    }
-
-    // 计算校验位
-    const expectedCheck = sscc18CalcCheckDigit(trimmed.substring(0, 17));
-    const actualCheck = parseInt(trimmed[17]);
-
-    if (expectedCheck !== actualCheck) {
-        return {
-            valid: false,
-            msg: `❌ 校验位错误：期望 ${expectedCheck}，实际 ${actualCheck}`,
-            type: 'fail',
-            code: trimmed
-        };
-    }
-
-    // 解析各段
-    const extension = trimmed[0];
-    // 尝试推断公司前缀长度（常见为7-10位）
-    const companyPrefix = trimmed.substring(1, 8);  // 默认取7位
-    const serialRef = trimmed.substring(8, 17);
-    const checkDigit = trimmed[17];
-
+    const t = code.trim();
+    if (!/^\d+$/.test(t)) return { valid: false, msg: '❌ 必须全部是数字' };
+    if (t.length !== 18) return { valid: false, msg: `❌ 长度 ${t.length} 位（需要18位）` };
+    const exp = sscc18CalcCheckDigit(t.slice(0, 17));
+    if (exp !== parseInt(t[17])) return { valid: false, msg: `❌ 校验位错误：期望 ${exp}，实际 ${t[17]}` };
     return {
-        valid: true,
-        msg: `✅ SSCC-18 验证通过`,
-        type: 'pass',
-        code: trimmed,
+        valid: true, msg: '✅ SSCC-18 验证通过',
         detail: {
-            full: trimmed,
-            extension,
-            companyPrefix,
-            serialRef,
-            checkDigit: String(checkDigit),
-            humanReadable: `(00) ${extension} ${companyPrefix} ${serialRef} ${checkDigit}`
+            full: t, extension: t[0], companyPrefix: t.slice(1,8),
+            serialRef: t.slice(8,17), checkDigit: t[17],
+            humanReadable: `(00) ${t[0]} ${t.slice(1,8)} ${t.slice(8,17)} ${t[17]}`
         }
     };
 }
 
-// ============================================================
-// 读取设置
-// ============================================================
-function getSettings() {
-    const DOTS_PER_MM = 8;  // 203dpi ≈ 8 dots/mm
-
-    // 标签尺寸
-    const sizeSelect = document.getElementById('labelSize').value;
-    let labelW, labelH;
-    if (sizeSelect === 'custom') {
-        labelW = parseInt(document.getElementById('customW').value) || 102;
-        labelH = parseInt(document.getElementById('customH').value) || 63;
-    } else {
-        [labelW, labelH] = sizeSelect.split('x').map(Number);
-    }
-    // 横向/纵向
-    const orientation = document.getElementById('orientation').value;
-    if (orientation === 'portrait') { [labelW, labelH] = [labelH, labelW]; }
-
-    const labelWidthDots = Math.round(labelW * DOTS_PER_MM);
-    const labelHeightDots = Math.round(labelH * DOTS_PER_MM);
-
-    return {
-        labelW, labelH,
-        labelWidthDots,
-        labelHeightDots,
-        density: parseInt(document.getElementById('density').value) || 16,
-        barcodeHeight: Math.round((parseInt(document.getElementById('barcodeHeight').value) || 25) * DOTS_PER_MM),
-        barcodeWidth: parseInt(document.getElementById('barcodeWidth').value) || 3,
-        barcodeX: parseInt(document.getElementById('barcodeX').value) || 20,
-        barcodeY: parseInt(document.getElementById('barcodeY').value) || 50,
-        topText: document.getElementById('topText').value.trim(),
-        topFontSize: parseInt(document.getElementById('topFontSize').value) || 22,
-        hrFontSize: parseInt(document.getElementById('hrFontSize').value) || 18,
-        dateFontSize: parseInt(document.getElementById('dateFontSize').value) || 16,
-        textYOffset: parseInt(document.getElementById('textYOffset').value) || 0,
-        showDate: document.getElementById('showDate').value === 'yes',
-        printCopies: parseInt(document.getElementById('printCopies').value) || 1
-    };
+function getDefaultSSCC18() {
+    const base = '15714571014810270';
+    return '00' + base + sscc18CalcCheckDigit(base);
 }
 
 // ============================================================
 // ZPL 生成
 // ============================================================
-function generateSSCC18Zpl(code, topTextOverride) {
+function generateSSCC18Zpl(code, titleOverride) {
     const s = getSettings();
-    const centerX = Math.round(s.labelWidthDots / 2);
-    let zpl = '^XA\n';
+    const cx = Math.round(s.labelWidthDots / 2);
+    let z = '^XA\n^CI28\n^JMA\n^SEE:GB18030.DAT^FS\n^CWZ,E:SIMSUN.FNT\n';
+    z += '^MD' + s.density + '\n^LL' + s.labelHeightDots + '\n^PW' + s.labelWidthDots + '\n';
 
-    // 中文支持
-    zpl += '^CI28\n';
-    zpl += '^JMA\n';
-    zpl += '^SEE:GB18030.DAT^FS\n';
-    zpl += '^CWZ,E:SIMSUN.FNT\n';
-
-    // 打印浓度与标签尺寸
-    zpl += '^MD' + s.density + '\n';
-    zpl += '^LL' + s.labelHeightDots + '\n';
-    zpl += '^PW' + s.labelWidthDots + '\n';
-
-    // 上方标题
-    const displayTop = topTextOverride || s.topText;
-    let currentY = s.barcodeY;
-    if (displayTop) {
-        const x = centerX - Math.round(displayTop.length * s.topFontSize * 0.35);
-        zpl += '^FO' + Math.round(x) + ',' + currentY + '\n';
-        zpl += '^A0,N' + s.topFontSize + '\n';
-        zpl += '^FD' + displayTop + '^FS\n';
-        currentY += s.topFontSize + 10;
+    const title = titleOverride || s.topText;
+    let y = s.bcY;
+    if (title) {
+        const tx = cx - Math.round(title.length * s.topFontSize * 0.35);
+        z += '^FO' + tx + ',' + y + '\n^A0,N' + s.topFontSize + '\n^FD' + title + '^FS\n';
+        y += s.topFontSize + 10;
     }
+    z += '^FO' + s.bcX + ',' + y + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,N,N\n^FD00' + code + '^FS\n';
 
-    // GS1-128 条码 (SSCC-18: AI=00 + 18位)
-    const barcodeX = s.barcodeX;
-    // 如果用户手动设了 barcodeY，优先用；否则紧跟标题
-    const bcY = (s.barcodeY > 50 || displayTop) ? currentY : s.barcodeY;
-    zpl += '^FO' + barcodeX + ',' + bcY + '\n';
-    zpl += '^BY' + s.barcodeWidth + '\n';
-    zpl += '^BCN,' + s.barcodeHeight + ',N,N,N\n';
-    zpl += '^FD00' + code + '^FS\n';
+    const v = validateSSCC18(code);
+    const hr = v.valid ? v.detail.humanReadable : code;
+    const hrY = y + s.bcHeightDots + 8;
+    z += '^FO' + (cx - Math.round(hr.length * s.hrFontSize * 0.35)) + ',' + (hrY + s.textYOffset) + '\n^A0,N' + s.hrFontSize + '\n^FD' + hr + '^FS\n';
 
-    // 人可读文字
-    const parsed = validateSSCC18(code);
-    const hrText = parsed.valid ? parsed.detail.humanReadable : code;
-    const hrY = bcY + s.barcodeHeight + 8;
-    const hrX = centerX - Math.round(hrText.length * s.hrFontSize * 0.35);
-    zpl += '^FO' + Math.round(hrX) + ',' + (hrY + s.textYOffset) + '\n';
-    zpl += '^A0,N' + s.hrFontSize + '\n';
-    zpl += '^FD' + hrText + '^FS\n';
-
-    // 日期
-    if (s.showDate) {
-        const now = new Date();
-        const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        const dateY = hrY + s.hrFontSize + 6 + s.textYOffset;
-        const dateX = centerX - Math.round(dateStr.length * s.dateFontSize * 0.35);
-        zpl += '^FO' + Math.round(dateX) + ',' + dateY + '\n';
-        zpl += '^A0,N' + s.dateFontSize + '\n';
-        zpl += '^FD' + dateStr + '^FS\n';
+    if (s.showDate === 'yes') {
+        const d = new Date(); const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        const dy = hrY + s.hrFontSize + 6 + s.textYOffset;
+        z += '^FO' + (cx - Math.round(ds.length * s.dateFontSize * 0.35)) + ',' + dy + '\n^A0,N' + s.dateFontSize + '\n^FD' + ds + '^FS\n';
     }
-
-    zpl += '^XZ\n';
-    return zpl;
-}
-
-// 默认测试用 SSCC-18（模拟客户扫码枪扫出的20位码）
-function getDefaultSSCC18() {
-    const base = '15714571014810270'; // 17位
-    const check = sscc18CalcCheckDigit(base);
-    return '00' + base + check;  // 20位：AI前缀 + SSCC-18
+    return z + '^XZ\n';
 }
 
 // ============================================================
-// 打印
+// 打印机通信
 // ============================================================
 let currentDevice = null;
 
 async function initPrinter() {
     const el = document.getElementById('printerStatus');
     try {
-        currentDevice = await new Promise((resolve, reject) => {
-            BrowserPrint.getDefaultDevice("printer", resolve, reject);
-        });
+        currentDevice = await new Promise((ok, err) => BrowserPrint.getDefaultDevice("printer", ok, err));
         el.textContent = '✅ ' + currentDevice.name;
-        el.className = 'status-badge status-ok';
-    } catch (e) {
+        el.className = 'badge-status badge-ok';
+    } catch {
         el.textContent = '❌ 未连接';
-        el.className = 'status-badge status-err';
+        el.className = 'badge-status badge-err';
     }
 }
 
 async function sendZpl(zpl) {
     if (!currentDevice) throw new Error('打印机未连接');
-    return new Promise((resolve, reject) => {
-        currentDevice.send(zpl, resolve, (err) => reject(new Error(err)));
-    });
+    return new Promise((ok, err) => currentDevice.send(zpl, ok, e => err(new Error(e))));
 }
 
 async function doPrint() {
     const code = document.getElementById('scanInput').value.trim();
-    if (!code) { showToast('请输入条码', 'error'); return; }
-    if (!currentDevice) { showToast('打印机未连接', 'error'); return; }
-
-    const btn = document.getElementById('btnPrint');
-    btn.disabled = true;
-    btn.textContent = '⏳ 打印中...';
+    if (!code) return;
+    if (!currentDevice) { showToast('打印机未连接', 'err'); return; }
     try {
-        const copies = getSettings().printCopies;
-        for (let i = 0; i < copies; i++) {
-            const zpl = generateSSCC18Zpl(code);
-            await sendZpl(zpl);
-        }
-        showToast(`✅ 打印成功 (${copies}份)`, 'success');
+        const s = getSettings();
+        for (let i = 0; i < s.copies; i++) await sendZpl(generateSSCC18Zpl(code));
+        showToast('✅ 打印成功', 'ok');
+        addHistory(code);
         document.getElementById('scanInput').value = '';
-        document.getElementById('validateResult').style.display = 'none';
-        btn.disabled = true;
-    } catch (e) {
-        showToast('打印失败: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '🖨️ 打印此标签';
-    }
-}
-
-async function printTestLabel() {
-    if (!currentDevice) { showToast('打印机未连接', 'error'); return; }
-    try {
-        const raw = getDefaultSSCC18(); // 20位
-        const normalized = normalizeScanInput(raw);
-        const zpl = generateSSCC18Zpl(normalized.code, 'SSCC-18 TEST');
-        await sendZpl(zpl);
-        showToast(`✅ 测试标签已打印: ${normalized.code}`, 'success');
-    } catch (e) {
-        showToast('打印失败: ' + e.message, 'error');
-    }
+        document.getElementById('validateMsg').style.display = 'none';
+        document.getElementById('btnPrint').disabled = true;
+    } catch (e) { showToast('打印失败: ' + e.message, 'err'); }
 }
 
 // ============================================================
 // 扫码处理
 // ============================================================
-function handleScan(code) {
-    const resultEl = document.getElementById('validateResult');
-    const btnPrint = document.getElementById('btnPrint');
-
-    if (!code) {
-        resultEl.style.display = 'none';
-        btnPrint.disabled = true;
-        return;
-    }
-
-    // 自动识别扫码枪输出（20位含AI → 提取18位）
-    const normalized = normalizeScanInput(code);
-    const sscc18 = normalized.code;
-
-    // 把提取后的18位写回输入框，后续操作统一用这个
-    document.getElementById('scanInput').value = sscc18;
-
-    const result = validateSSCC18(sscc18);
-
-    if (result.valid) {
-        resultEl.className = 'validate-result validate-pass';
-        let extraInfo = '';
-        if (normalized.ai) {
-            extraInfo = `<div style="margin-top:6px;font-size:12px;color:#999;">
-                原始扫码: <code style="background:#e6f7ff;padding:1px 4px;border-radius:3px;">${normalized.source}</code>
-                → 自动提取 SSCC: <code style="background:#f6ffed;padding:1px 4px;border-radius:3px;">${sscc18}</code>
-            </div>`;
-        }
-        resultEl.innerHTML = result.msg + extraInfo + `
-            <div class="detail-grid">
-                <span class="label">完整编码</span><span class="value highlight">${result.detail.full}</span>
-                <span class="label">扩展位</span><span class="value">${result.detail.extension}</span>
-                <span class="label">公司前缀</span><span class="value">${result.detail.companyPrefix}</span>
-                <span class="label">序列号</span><span class="value">${result.detail.serialRef}</span>
-                <span class="label">校验位</span><span class="value highlight">${result.detail.checkDigit}</span>
-                <span class="label">人可读</span><span class="value">${result.detail.humanReadable}</span>
-            </div>`;
-
-        // ✅ 验证通过，自动触发打印，不需二次确认
-        btnPrint.disabled = false;
-        doPrint();
+function handleScan(raw) {
+    if (!raw) { document.getElementById('validateMsg').style.display = 'none'; return; }
+    const norm = normalizeScanInput(raw);
+    const sscc = norm.code;
+    document.getElementById('scanInput').value = sscc;
+    const v = validateSSCC18(sscc);
+    const el = document.getElementById('validateMsg');
+    if (v.valid) {
+        el.className = 'validate-msg v-pass';
+        el.innerHTML = v.msg;
+        document.getElementById('btnPrint').disabled = false;
+        if (loadSettings().autoPrint) doPrint();
     } else {
-        resultEl.className = 'validate-result validate-fail';
-        resultEl.innerHTML = result.msg;
-        btnPrint.disabled = true;
+        el.className = 'validate-msg v-fail';
+        el.innerHTML = v.msg;
+        document.getElementById('btnPrint').disabled = true;
     }
-    resultEl.style.display = 'block';
+    el.style.display = 'block';
 }
 
 // ============================================================
-// 工具
+// 页面切换
 // ============================================================
-function toggleZpl() {
-    const el = document.getElementById('zplOutput');
-    if (el.style.display === 'none') {
-        const code = document.getElementById('scanInput').value.trim() || getDefaultSSCC18();
-        el.textContent = generateSSCC18Zpl(code);
-        el.style.display = 'block';
-    } else {
-        el.style.display = 'none';
-    }
+function togglePage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    if (name === 'scan') document.getElementById('scanInput').focus();
 }
 
+// ============================================================
+// Toast
+// ============================================================
 function showToast(msg, type) {
-    const t = document.createElement('div');
-    t.className = `toast toast-${type}`;
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; }, 2500);
-    setTimeout(() => { t.remove(); }, 3000);
+    const d = document.createElement('div');
+    d.className = 'toast-msg t-' + type;
+    d.textContent = msg;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 2500);
 }
 
 // ============================================================
@@ -717,30 +628,19 @@ function showToast(msg, type) {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     initPrinter();
+    applySettings();
+    renderHistory();
 
     const scanInput = document.getElementById('scanInput');
-    scanInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleScan(scanInput.value.trim());
-        }
-    });
-    scanInput.addEventListener('input', () => {
-        handleScan(scanInput.value.trim());
+    scanInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleScan(scanInput.value.trim()); } });
+
+    document.getElementById('labelSize').addEventListener('change', e => {
+        document.getElementById('customSizeGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
     });
 
-    // 标签尺寸：自定义切换
-    document.getElementById('labelSize').addEventListener('change', (e) => {
-        document.getElementById('customSizeWrap').style.display =
-            e.target.value === 'custom' ? 'block' : 'none';
-    });
-
-    // 点击空白处回到输入框
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('button') && !e.target.closest('input') &&
-            !e.target.closest('select')) {
+    document.addEventListener('click', e => {
+        if (!e.target.closest('button') && !e.target.closest('input') && !e.target.closest('select') && !e.target.closest('.history-row'))
             scanInput.focus();
-        }
     });
 });
 </script>
