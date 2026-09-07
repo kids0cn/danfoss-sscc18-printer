@@ -68,3 +68,15 @@
 - **作者**: kids0cn
 - **文件**: 1 个文件变更
 - test-sscc18/index.html
+---
+### 2026-09-07 21:02 | ecd2892 (master)
+- **提交**: 更新文件: .hermes-progress
+- **作者**: kids0cn
+- **文件**: 1 个文件变更
+- .hermes-progress
+---
+### 2026-09-07 21:04 | b19d23f (master)
+- **提交**: 修复：去掉btn-print CSS里的display:none，按钮始终可见
+- **作者**: kids0cn
+- **文件**: 1 个文件变更
+- test-sscc18/index.html
