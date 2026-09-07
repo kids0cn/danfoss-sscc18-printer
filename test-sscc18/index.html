@@ -46,11 +46,10 @@
 
         /* ===== Main content ===== */
         .main { max-width: 640px; margin: 0 auto; padding: 16px; }
-        .page { display: none; }
-        .page.active { display: flex; flex-direction: column; }
 
         /* 扫码页垂直居中 */
         #page-scan {
+            display: flex; flex-direction: column;
             justify-content: center;
             min-height: calc(100vh - 56px);
         }
@@ -122,7 +121,30 @@
         }
         .history-row .reprint:hover { border-color: var(--df-red); color: var(--df-red); }
 
-        /* ===== Settings page ===== */
+        /* ===== Drawer 侧边栏 ===== */
+        .drawer-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.35); z-index: 200;
+        }
+        .drawer-overlay.open { display: block; }
+        .drawer {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: 380px; max-width: 90vw;
+            background: #fff; z-index: 201;
+            transform: translateX(-100%);
+            transition: transform .25s ease;
+            box-shadow: 4px 0 16px rgba(0,0,0,.15);
+            overflow-y: auto;
+        }
+        .drawer.open { transform: translateX(0); }
+        .drawer-header {
+            position: sticky; top: 0; z-index: 1;
+            background: var(--df-red); color: #fff;
+            padding: 14px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .drawer-header h3 { font-size: 15px; font-weight: 600; margin: 0; }
+        .drawer-body { padding: 16px; }
         .settings-card {
             background: #fff; border-radius: 12px;
             padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
@@ -195,8 +217,7 @@
     </div>
     <div class="right">
         <span id="printerStatus" class="badge-status badge-warn">检测中...</span>
-        <button class="btn-icon" onclick="togglePage('scan')" id="btnScanTab" title="扫码">📷</button>
-        <button class="btn-icon" onclick="togglePage('settings')" id="btnSettingTab" title="设置">⚙️</button>
+        <button class="btn-icon" onclick="toggleDrawer()" title="设置">⚙️</button>
     </div>
 </div>
 
@@ -224,8 +245,14 @@
         </div>
     </div>
 
-    <!-- ===== 设置页 ===== -->
-    <div class="page" id="page-settings">
+    <!-- ===== 设置抽屉 ===== -->
+    <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
+    <div class="drawer" id="settingsDrawer">
+        <div class="drawer-header">
+            <h3>⚙️ 打印设置</h3>
+            <button class="btn-icon" onclick="toggleDrawer()" style="font-size:18px;">✕</button>
+        </div>
+        <div class="drawer-body">
 
         <div class="settings-card">
             <h6>🖨️ 打印模式</h6>
@@ -373,7 +400,7 @@
         </div>
 
         <button class="btn-save" onclick="saveSettings()">💾 保存设置</button>
-        <div style="height:20px;"></div>
+        </div>
     </div>
 </div>
 
@@ -612,12 +639,20 @@ function handleScan(raw) {
 }
 
 // ============================================================
-// 页面切换
+// 抽屉开关
 // ============================================================
-function togglePage(name) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-' + name).classList.add('active');
-    if (name === 'scan') document.getElementById('scanInput').focus();
+function toggleDrawer() {
+    const drawer = document.getElementById('settingsDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    const isOpen = drawer.classList.contains('open');
+    if (isOpen) {
+        drawer.classList.remove('open');
+        overlay.classList.remove('open');
+        document.getElementById('scanInput').focus();
+    } else {
+        drawer.classList.add('open');
+        overlay.classList.add('open');
+    }
 }
 
 // ============================================================
