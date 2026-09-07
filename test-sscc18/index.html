@@ -231,7 +231,7 @@
                    placeholder="请扫描 SSCC-18 条码..." autofocus autocomplete="off" maxlength="20">
             <div class="scan-hint">扫描枪扫码后自动识别并打印</div>
             <div id="validateMsg" class="validate-msg"></div>
-            <button class="btn-print" id="btnPrint" onclick="doPrint()">🖨️ 打印此标签</button>
+            <button class="btn-print" id="btnPrint" onclick="doPrint()" style="display:none;">🖨️ 打印此标签</button>
         </div>
 
         <div class="history-box">
@@ -692,6 +692,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('labelSize').addEventListener('change', e => {
         document.getElementById('customSizeGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
+    });
+
+    // 自动打印开关实时切换打印按钮显隐
+    document.getElementById('autoPrint').addEventListener('change', e => {
+        document.getElementById('btnPrint').style.display = e.target.checked ? 'none' : 'block';
     });
 
     document.addEventListener('click', e => {
