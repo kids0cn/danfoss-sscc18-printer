@@ -612,6 +612,7 @@ async function doPrint() {
         showToast('✅ 打印成功', 'ok');
         addHistory(code);
         document.getElementById('scanInput').value = '';
+        document.getElementById('scanInput').style.borderColor = '#ddd';
         document.getElementById('validateMsg').style.display = 'none';
         document.getElementById('btnPrint').disabled = true;
     } catch (e) { showToast('打印失败: ' + e.message, 'err'); }
@@ -633,19 +634,32 @@ async function printTestLabel() {
 // ============================================================
 function handleScan(raw) {
     if (!raw) { document.getElementById('validateMsg').style.display = 'none'; return; }
+
+    // 自动识别：20位含00前缀 → 提取18位SSCC
     const norm = normalizeScanInput(raw);
     const sscc = norm.code;
     document.getElementById('scanInput').value = sscc;
+
+    // 验证能否转化为合法SSCC-18
     const v = validateSSCC18(sscc);
     const el = document.getElementById('validateMsg');
+    const input = document.getElementById('scanInput');
+
     if (v.valid) {
         el.className = 'validate-msg v-pass';
-        el.innerHTML = v.msg;
+        let info = '✅ SSCC-18 验证通过';
+        if (norm.ai) {
+            info += `<br><span style="font-size:11px;color:#999;">原始: ${norm.source} → SSCC: ${sscc}</span>`;
+        }
+        el.innerHTML = info;
+        input.style.borderColor = '#52c41a';
         document.getElementById('btnPrint').disabled = false;
-        if (loadSettings().autoPrint) doPrint();
+        // 自动打印：延迟200ms让用户看到验证结果
+        if (loadSettings().autoPrint) setTimeout(doPrint, 200);
     } else {
         el.className = 'validate-msg v-fail';
         el.innerHTML = v.msg;
+        input.style.borderColor = '#ff4d4f';
         document.getElementById('btnPrint').disabled = true;
     }
     el.style.display = 'block';
