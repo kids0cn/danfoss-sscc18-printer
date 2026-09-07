@@ -231,7 +231,7 @@
                    placeholder="请扫描 SSCC-18 条码..." autofocus autocomplete="off" maxlength="20">
             <div class="scan-hint">扫描枪扫码后自动识别并打印</div>
             <div id="validateMsg" class="validate-msg"></div>
-            <button class="btn-print" id="btnPrint" onclick="doPrint()" style="display:none;">🖨️ 打印此标签</button>
+            <button class="btn-print" id="btnPrint" onclick="doPrint()">🖨️ 打印此标签</button>
         </div>
 
         <div class="history-box">
@@ -465,7 +465,19 @@ function applySettings() {
         else el.value = s[k];
     });
     document.getElementById('customSizeGroup').style.display = s.labelSize === 'custom' ? 'block' : 'none';
-    document.getElementById('btnPrint').style.display = s.autoPrint ? 'none' : 'block';
+    updatePrintBtn(s.autoPrint);
+}
+
+function updatePrintBtn(autoPrint) {
+    const btn = document.getElementById('btnPrint');
+    if (autoPrint) {
+        btn.style.background = '#52c41a';
+        btn.innerHTML = '✅ 自动打印已开启';
+        btn.disabled = true;
+    } else {
+        btn.style.background = '#e60000';
+        btn.innerHTML = '🖨️ 打印此标签';
+    }
 }
 
 // ============================================================
@@ -653,7 +665,9 @@ function handleScan(raw) {
         }
         el.innerHTML = info;
         input.style.borderColor = '#52c41a';
-        document.getElementById('btnPrint').disabled = false;
+        if (!loadSettings().autoPrint) {
+            document.getElementById('btnPrint').disabled = false;
+        }
         // 自动打印：延迟200ms让用户看到验证结果
         if (loadSettings().autoPrint) setTimeout(doPrint, 200);
     } else {
@@ -710,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 自动打印开关实时切换打印按钮显隐
     document.getElementById('autoPrint').addEventListener('change', e => {
-        document.getElementById('btnPrint').style.display = e.target.checked ? 'none' : 'block';
+        updatePrintBtn(e.target.checked);
     });
 
     document.addEventListener('click', e => {
