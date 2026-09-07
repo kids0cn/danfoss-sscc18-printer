@@ -12,15 +12,17 @@
             min-height: 100vh;
         }
         .header {
-            background: linear-gradient(135deg, #e65100, #ff9800);
+            background: #e60000;
             color: white;
-            padding: 16px 24px;
+            padding: 12px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-        .header h1 { font-size: 20px; font-weight: 600; }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .header img { height: 32px; }
+        .header h1 { font-size: 18px; font-weight: 500; letter-spacing: 0.5px; }
         .status-badge {
             padding: 4px 12px;
             border-radius: 12px;
@@ -53,7 +55,7 @@
             height: 56px;
             font-size: 22px;
             padding: 0 16px;
-            border: 2px solid #e65100;
+            border: 2px solid #e60000;
             border-radius: 8px;
             outline: none;
             letter-spacing: 2px;
@@ -61,7 +63,7 @@
         }
         .scan-input:focus {
             border-color: #bf360c;
-            box-shadow: 0 0 0 3px rgba(230,81,0,0.15);
+            box-shadow: 0 0 0 3px rgba(230,0,0,0.15);
         }
         .scan-input::placeholder { color: #aaa; letter-spacing: 0; font-size: 16px; }
 
@@ -106,8 +108,8 @@
             gap: 6px;
         }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background: #e65100; color: white; }
-        .btn-primary:hover:not(:disabled) { background: #bf360c; }
+        .btn-primary { background: #e60000; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #c00; }
         .btn-default { background: #f0f0f0; color: #333; }
         .btn-default:hover:not(:disabled) { background: #e0e0e0; }
 
@@ -163,7 +165,7 @@
             outline: none;
         }
         .setting-item select:focus,
-        .setting-item input:focus { border-color: #e65100; }
+        .setting-item input:focus { border-color: #e60000; }
         .setting-row { display: flex; gap: 16px; align-items: center; margin-top: 8px; }
         .setting-row label { font-size: 13px; color: #666; white-space: nowrap; }
         .setting-row input[type="range"] { flex: 1; }
@@ -191,7 +193,10 @@
 <body>
 
 <div class="header">
-    <h1>📦 SSCC-18 标签打印测试</h1>
+    <div class="header-left">
+        <img src="assets/new-logo-danfoss.png" alt="Danfoss">
+        <h1>SSCC-18 标签打印工具</h1>
+    </div>
     <span id="printerStatus" class="status-badge status-warn">检测中...</span>
 </div>
 
@@ -575,9 +580,14 @@ let currentDevice = null;
 async function initPrinter() {
     const el = document.getElementById('printerStatus');
     try {
-        const resp = await fetch(`${BROWSER_PRINT_URL}/default?type=printer`);
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        currentDevice = await resp.json();
+        const resp = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', BROWSER_PRINT_URL + '/default?type=printer');
+            xhr.onload = () => xhr.status === 200 ? resolve(xhr) : reject(new Error('HTTP ' + xhr.status));
+            xhr.onerror = () => reject(new Error('网络错误'));
+            xhr.send();
+        });
+        currentDevice = JSON.parse(resp.responseText);
         el.textContent = '✅ ' + currentDevice.name;
         el.className = 'status-badge status-ok';
     } catch (e) {
@@ -588,13 +598,17 @@ async function initPrinter() {
 
 async function sendZpl(zpl) {
     if (!currentDevice) throw new Error('打印机未连接');
-    const resp = await fetch(`${BROWSER_PRINT_URL}/write`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device: currentDevice, data: zpl })
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', BROWSER_PRINT_URL + '/write');
+        // 不设 Content-Type，避免 CORS 预检
+        xhr.onload = () => {
+            if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
+            else reject(new Error('打印失败: ' + xhr.responseText));
+        };
+        xhr.onerror = () => reject(new Error('网络错误'));
+        xhr.send(JSON.stringify({ device: currentDevice, data: zpl }));
     });
-    if (!resp.ok) throw new Error('打印失败: ' + await resp.text());
-    return await resp.json();
 }
 
 async function doPrint() {
