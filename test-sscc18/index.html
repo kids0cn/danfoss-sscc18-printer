@@ -532,7 +532,7 @@ function generateSSCC18Zpl(code, topTextOverride) {
     const bcY = (s.barcodeY > 50 || displayTop) ? currentY : s.barcodeY;
     zpl += '^FO' + barcodeX + ',' + bcY + '\n';
     zpl += '^BY' + s.barcodeWidth + '\n';
-    zpl += '^BCN,' + s.barcodeHeight + ',Y,N,N\n';
+    zpl += '^BCN,' + s.barcodeHeight + ',N,N,N\n';
     zpl += '^FD00' + code + '^FS\n';
 
     // 人可读文字
