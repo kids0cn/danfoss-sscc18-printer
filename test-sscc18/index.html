@@ -348,7 +348,7 @@
     <div class="card">
         <div class="card-title">📷 扫码验证</div>
         <input type="text" id="scanInput" class="scan-input"
-               placeholder="请扫描 SSCC-18 条码..." autofocus autocomplete="off"
+               placeholder="扫码枪扫描（自动识别20位/18位）..." autofocus autocomplete="off"
                maxlength="20">
         <div id="validateResult" class="validate-result"></div>
 
@@ -370,6 +370,26 @@
 </div>
 
 <script>
+// ============================================================
+// 自动识别：扫码枪扫出的20位码 → 提取18位SSCC-18
+// ============================================================
+function normalizeScanInput(raw) {
+    const trimmed = raw.trim();
+
+    // 情况1：20位纯数字，且前2位是 "00" → 去掉AI前缀，取后18位
+    if (/^\d{20}$/.test(trimmed) && trimmed.substring(0, 2) === '00') {
+        return { code: trimmed.substring(2), ai: '00', source: trimmed };
+    }
+
+    // 情况2：已经是18位纯数字 → 直接用
+    if (/^\d{18}$/.test(trimmed)) {
+        return { code: trimmed, ai: '00', source: trimmed };
+    }
+
+    // 其他情况：原样返回，交给验证函数报错
+    return { code: trimmed, ai: null, source: trimmed };
+}
+
 // ============================================================
 // SSCC-18 校验算法 (Mod-10)
 // ============================================================
@@ -539,11 +559,11 @@ function generateSSCC18Zpl(code, topTextOverride) {
     return zpl;
 }
 
-// 默认测试用 SSCC-18
+// 默认测试用 SSCC-18（模拟客户扫码枪扫出的20位码）
 function getDefaultSSCC18() {
-    const base = '1570111234567890'; // 17位
+    const base = '15714571014810270'; // 17位
     const check = sscc18CalcCheckDigit(base);
-    return base + check;
+    return '00' + base + check;  // 20位：AI前缀 + SSCC-18
 }
 
 // ============================================================
@@ -606,10 +626,11 @@ async function doPrint() {
 async function printTestLabel() {
     if (!currentDevice) { showToast('打印机未连接', 'error'); return; }
     try {
-        const testCode = getDefaultSSCC18();
-        const zpl = generateSSCC18Zpl(testCode, 'SSCC-18 TEST');
+        const raw = getDefaultSSCC18(); // 20位
+        const normalized = normalizeScanInput(raw);
+        const zpl = generateSSCC18Zpl(normalized.code, 'SSCC-18 TEST');
         await sendZpl(zpl);
-        showToast(`✅ 测试标签已打印: ${testCode}`, 'success');
+        showToast(`✅ 测试标签已打印: ${normalized.code}`, 'success');
     } catch (e) {
         showToast('打印失败: ' + e.message, 'error');
     }
@@ -628,11 +649,25 @@ function handleScan(code) {
         return;
     }
 
-    const result = validateSSCC18(code);
+    // 自动识别扫码枪输出（20位含AI → 提取18位）
+    const normalized = normalizeScanInput(code);
+    const sscc18 = normalized.code;
+
+    // 把提取后的18位写回输入框，后续操作统一用这个
+    document.getElementById('scanInput').value = sscc18;
+
+    const result = validateSSCC18(sscc18);
 
     if (result.valid) {
         resultEl.className = 'validate-result validate-pass';
-        resultEl.innerHTML = result.msg + `
+        let extraInfo = '';
+        if (normalized.ai) {
+            extraInfo = `<div style="margin-top:6px;font-size:12px;color:#999;">
+                原始扫码: <code style="background:#e6f7ff;padding:1px 4px;border-radius:3px;">${normalized.source}</code>
+                → 自动提取 SSCC: <code style="background:#f6ffed;padding:1px 4px;border-radius:3px;">${sscc18}</code>
+            </div>`;
+        }
+        resultEl.innerHTML = result.msg + extraInfo + `
             <div class="detail-grid">
                 <span class="label">完整编码</span><span class="value highlight">${result.detail.full}</span>
                 <span class="label">扩展位</span><span class="value">${result.detail.extension}</span>
@@ -641,7 +676,10 @@ function handleScan(code) {
                 <span class="label">校验位</span><span class="value highlight">${result.detail.checkDigit}</span>
                 <span class="label">人可读</span><span class="value">${result.detail.humanReadable}</span>
             </div>`;
+
+        // ✅ 验证通过，自动触发打印，不需二次确认
         btnPrint.disabled = false;
+        doPrint();
     } else {
         resultEl.className = 'validate-result validate-fail';
         resultEl.innerHTML = result.msg;
