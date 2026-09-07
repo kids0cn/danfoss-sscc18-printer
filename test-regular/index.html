@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>普通条码标签打印测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #0054a6, #0078d4);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .status-ok { background: #52c41a; color: white; }
+        .status-err { background: #ff4d4f; color: white; }
+        .status-warn { background: #faad14; color: #333; }
+
+        .container { max-width: 700px; margin: 24px auto; padding: 0 16px; }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* 扫码输入 */
+        .scan-input {
+            width: 100%;
+            height: 56px;
+            font-size: 22px;
+            padding: 0 16px;
+            border: 2px solid #0078d4;
+            border-radius: 8px;
+            outline: none;
+            letter-spacing: 2px;
+            font-family: monospace;
+        }
+        .scan-input:focus {
+            border-color: #0054a6;
+            box-shadow: 0 0 0 3px rgba(0,120,212,0.15);
+        }
+        .scan-input::placeholder { color: #aaa; letter-spacing: 0; font-size: 16px; }
+
+        /* 验证结果 */
+        .validate-result {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .validate-pass { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+        .validate-fail { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+
+        /* 基本信息 */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            gap: 6px 12px;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .info-grid .label { color: #999; text-align: right; }
+        .info-grid .value { font-family: monospace; font-weight: 500; }
+        .info-grid .value.warn { color: #faad14; }
+        .info-grid .value.ok { color: #52c41a; }
+
+        /* 按钮 */
+        .btn-group { display: flex; gap: 12px; margin-top: 16px; }
+        .btn {
+            flex: 1;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #0078d4; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #0054a6; }
+        .btn-default { background: #f0f0f0; color: #333; }
+        .btn-default:hover:not(:disabled) { background: #e0e0e0; }
+
+        /* ZPL */
+        .zpl-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* 规则说明 */
+        .rule-box {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #096dd9;
+        }
+        .rule-box code {
+            background: #bae7ff;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        /* 扫码历史 */
+        .history-list { margin-top: 12px; max-height: 180px; overflow-y: auto; }
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: #f7f8fa;
+        }
+        .history-item .code { font-family: monospace; font-size: 14px; }
+        .history-item .meta { font-size: 12px; color: #999; }
+        .history-item .reprint-btn {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: opacity 0.3s;
+        }
+        .toast-success { background: #52c41a; color: white; }
+        .toast-error { background: #ff4d4f; color: white; }
+        .toast-info { background: #0078d4; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📋 普通条码标签打印测试</h1>
+    <span id="printerStatus" class="status-badge status-warn">检测中...</span>
+</div>
+
+<div class="container">
+
+    <!-- 说明 -->
+    <div class="card">
+        <div class="card-title">📖 编码说明</div>
+        <div class="rule-box">
+            本模式使用 <strong>Code 128</strong> 条码格式，支持任意字符。<br>
+            • 支持数字、字母、符号、中文等<br>
+            • 编码内容即为扫码枪扫描到的原始字符<br>
+            • 最大打印长度受标签宽度限制
+        </div>
+    </div>
+
+    <!-- 扫码区 -->
+    <div class="card">
+        <div class="card-title">📷 扫码验证</div>
+        <input type="text" id="scanInput" class="scan-input"
+               placeholder="请扫描条码..." autofocus autocomplete="off">
+        <div id="validateResult" class="validate-result"></div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" id="btnPrint" disabled onclick="doPrint()">
+                🖨️ 打印此标签
+            </button>
+            <button class="btn btn-default" onclick="printTestLabel()">
+                📋 打印测试标签
+            </button>
+        </div>
+    </div>
+
+    <!-- 历史 -->
+    <div class="card">
+        <div class="card-title">📜 扫码历史</div>
+        <div id="historyList" class="history-list">
+            <div style="color:#999;font-size:13px;">暂无记录</div>
+        </div>
+    </div>
+
+    <!-- ZPL -->
+    <div class="card">
+        <button class="btn btn-default" style="width:100%;" onclick="toggleZpl()">查看 ZPL 指令</button>
+        <div class="zpl-output" id="zplOutput"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 条码验证（宽松模式）
+// ============================================================
+function validateBarcode(code) {
+    const trimmed = code.trim();
+
+    if (!trimmed) {
+        return { valid: false, msg: '❌ 条码内容不能为空', type: 'fail' };
+    }
+
+    // 检测字符类型
+    const isDigitOnly = /^\d+$/.test(trimmed);
+    const hasLetter = /[a-zA-Z]/.test(trimmed);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(trimmed);
+    const isASCII = /^[\x20-\x7E]+$/.test(trimmed);
+
+    // 编码类型判断
+    let encodingType = 'Code 128';
+    let encodingHint = '';
+    if (isDigitOnly) {
+        encodingType = 'Code 128 (纯数字)';
+        encodingHint = '纯数字条码，长度 ' + trimmed.length;
+    } else if (hasLetter && !hasSpecial) {
+        encodingType = 'Code 128 (字母数字)';
+        encodingHint = '字母数字混合，长度 ' + trimmed.length;
+    } else if (hasSpecial) {
+        encodingType = 'Code 128 (全字符)';
+        encodingHint = '含特殊字符，长度 ' + trimmed.length;
+    }
+
+    // 长度检查
+    let lengthStatus = 'ok';
+    let lengthMsg = `长度 ${trimmed.length} 字符`;
+    if (trimmed.length > 48) {
+        lengthStatus = 'warn';
+        lengthMsg += '（较长，可能超出标签宽度）';
+    } else if (trimmed.length > 30) {
+        lengthStatus = 'warn';
+        lengthMsg += '（建议控制在30字符以内）';
+    }
+
+    // 非ASCII警告
+    let charStatus = 'ok';
+    let charMsg = '全ASCII字符';
+    if (!isASCII) {
+        charStatus = 'warn';
+        charMsg = '⚠️ 包含非ASCII字符（中文等），可能无法正确编码';
+    }
+
+    return {
+        valid: true,
+        msg: '✅ 条码格式可打印',
+        type: 'pass',
+        code: trimmed,
+        detail: {
+            length: trimmed.length,
+            encodingType,
+            encodingHint,
+            lengthStatus,
+            lengthMsg,
+            charStatus,
+            charMsg,
+            preview: trimmed.length > 40 ? trimmed.substring(0, 37) + '...' : trimmed
+        }
+    };
+}
+
+// ============================================================
+// ZPL 生成
+// ============================================================
+function generateRegularZpl(code, topText) {
+    let zpl = '^XA\n';
+
+    // 中文支持
+    zpl += '^CI28\n';
+    zpl += '^JMA\n';
+    zpl += '^SEE:GB18030.DAT^FS\n';
+    zpl += '^CWZ,E:SIMSUN.FNT\n';
+
+    // 标签尺寸 (50mm x 30mm)
+    zpl += '^LL600\n';
+    zpl += '^PW800\n';
+
+    // 上方文字
+    if (topText) {
+        const fontSize = 22;
+        const x = 400 - (topText.length * fontSize) / 2;
+        zpl += '^FO' + Math.round(x) + ',20\n';
+        zpl += '^A0,N' + fontSize + '\n';
+        zpl += '^FD' + topText + '^FS\n';
+    }
+
+    // Code 128 条码
+    const barcodeY = topText ? 55 : 25;
+    const barcodeX = 60;
+    const barcodeHeight = Math.min(150, 80 + code.length * 2);
+    zpl += '^FO' + barcodeX + ',' + barcodeY + '\n';
+    zpl += '^BY3\n';
+    zpl += '^BCN,' + barcodeHeight + ',Y,N,N\n';
+    zpl += '^FD' + code + '^FS\n';
+
+    // 条码下方显示原始文字
+    const textY = barcodeY + barcodeHeight + 10;
+    const textSize = Math.min(22, Math.max(14, 360 / code.length));
+    const textX = 400 - (code.length * textSize * 0.4);
+    zpl += '^FO' + Math.round(textX) + ',' + textY + '\n';
+    zpl += '^A0,N' + textSize + '\n';
+    zpl += '^FD' + code + '^FS\n';
+
+    // 日期
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const dateX = 400 - (dateStr.length * 7);
+    zpl += '^FO' + Math.round(dateX) + ',' + (textY + textSize + 8) + '\n';
+    zpl += '^A0,N16\n';
+    zpl += '^FD' + dateStr + '^FS\n';
+
+    zpl += '^XZ\n';
+    return zpl;
+}
+
+// ============================================================
+// 打印
+// ============================================================
+const BROWSER_PRINT_URL = 'http://127.0.0.1:9100';
+let currentDevice = null;
+let history = [];
+
+async function initPrinter() {
+    const el = document.getElementById('printerStatus');
+    try {
+        const resp = await fetch(`${BROWSER_PRINT_URL}/default?type=printer`);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        currentDevice = await resp.json();
+        el.textContent = '✅ ' + currentDevice.name;
+        el.className = 'status-badge status-ok';
+    } catch (e) {
+        el.textContent = '❌ 未连接';
+        el.className = 'status-badge status-err';
+    }
+}
+
+async function sendZpl(zpl) {
+    if (!currentDevice) throw new Error('打印机未连接');
+    const resp = await fetch(`${BROWSER_PRINT_URL}/write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device: currentDevice, data: zpl })
+    });
+    if (!resp.ok) throw new Error('打印失败: ' + await resp.text());
+    return await resp.json();
+}
+
+async function doPrint() {
+    const code = document.getElementById('scanInput').value.trim();
+    if (!code) { showToast('请输入条码', 'error'); return; }
+    if (!currentDevice) { showToast('打印机未连接', 'error'); return; }
+
+    const btn = document.getElementById('btnPrint');
+    btn.disabled = true;
+    btn.textContent = '⏳ 打印中...';
+    try {
+        const zpl = generateRegularZpl(code);
+        await sendZpl(zpl);
+        showToast('✅ 打印成功', 'success');
+        addHistory(code);
+        document.getElementById('scanInput').value = '';
+        document.getElementById('validateResult').style.display = 'none';
+        btn.disabled = true;
+    } catch (e) {
+        showToast('打印失败: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🖨️ 打印此标签';
+    }
+}
+
+async function printTestLabel() {
+    if (!currentDevice) { showToast('打印机未连接', 'error'); return; }
+    try {
+        const testCode = 'DF-2026-0906-001';
+        const zpl = generateRegularZpl(testCode, '丹佛斯 DCI');
+        await sendZpl(zpl);
+        showToast(`✅ 测试标签已打印`, 'success');
+        addHistory(testCode + ' (测试)');
+    } catch (e) {
+        showToast('打印失败: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+// 扫码处理
+// ============================================================
+function handleScan(code) {
+    const resultEl = document.getElementById('validateResult');
+    const btnPrint = document.getElementById('btnPrint');
+
+    if (!code) {
+        resultEl.style.display = 'none';
+        btnPrint.disabled = true;
+        return;
+    }
+
+    const result = validateBarcode(code);
+
+    if (result.valid) {
+        resultEl.className = 'validate-result validate-pass';
+        resultEl.innerHTML = result.msg + `
+            <div class="info-grid">
+                <span class="label">编码内容</span><span class="value">${result.detail.preview}</span>
+                <span class="label">编码类型</span><span class="value">${result.detail.encodingType}</span>
+                <span class="label">长度</span><span class="value ${result.detail.lengthStatus}">${result.detail.lengthMsg}</span>
+                <span class="label">字符类型</span><span class="value ${result.detail.charStatus}">${result.detail.charMsg}</span>
+            </div>`;
+        btnPrint.disabled = false;
+    } else {
+        resultEl.className = 'validate-result validate-fail';
+        resultEl.innerHTML = result.msg;
+        btnPrint.disabled = true;
+    }
+    resultEl.style.display = 'block';
+}
+
+// ============================================================
+// 历史
+// ============================================================
+function addHistory(code) {
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    history.unshift({ code, time });
+    if (history.length > 20) history.pop();
+    renderHistory();
+}
+
+function renderHistory() {
+    const el = document.getElementById('historyList');
+    if (history.length === 0) {
+        el.innerHTML = '<div style="color:#999;font-size:13px;">暂无记录</div>';
+        return;
+    }
+    el.innerHTML = history.map(item => `
+        <div class="history-item">
+            <span class="code">${item.code}</span>
+            <span class="meta">${item.time}</span>
+            <button class="reprint-btn" onclick="reprint('${item.code.replace(/'/g, "\\'")}')">重打</button>
+        </div>
+    `).join('');
+}
+
+function reprint(code) {
+    document.getElementById('scanInput').value = code;
+    handleScan(code);
+    doPrint();
+}
+
+// ============================================================
+// 工具
+// ============================================================
+function toggleZpl() {
+    const el = document.getElementById('zplOutput');
+    if (el.style.display === 'none') {
+        const code = document.getElementById('scanInput').value.trim() || 'DF-2026-0906-001';
+        el.textContent = generateRegularZpl(code);
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; }, 2500);
+    setTimeout(() => { t.remove(); }, 3000);
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    initPrinter();
+
+    const scanInput = document.getElementById('scanInput');
+    scanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleScan(scanInput.value.trim());
+        }
+    });
+    scanInput.addEventListener('input', () => {
+        handleScan(scanInput.value.trim());
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('button') && !e.target.closest('input')) {
+            scanInput.focus();
+        }
+    });
+});
+</script>
+</body>
+</html>

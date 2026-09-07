@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSCC-18 标签打印测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #e65100, #ff9800);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .status-ok { background: #52c41a; color: white; }
+        .status-err { background: #ff4d4f; color: white; }
+        .status-warn { background: #faad14; color: #333; }
+
+        .container { max-width: 700px; margin: 24px auto; padding: 0 16px; }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* 扫码输入 */
+        .scan-input {
+            width: 100%;
+            height: 56px;
+            font-size: 22px;
+            padding: 0 16px;
+            border: 2px solid #e65100;
+            border-radius: 8px;
+            outline: none;
+            letter-spacing: 2px;
+            font-family: monospace;
+        }
+        .scan-input:focus {
+            border-color: #bf360c;
+            box-shadow: 0 0 0 3px rgba(230,81,0,0.15);
+        }
+        .scan-input::placeholder { color: #aaa; letter-spacing: 0; font-size: 16px; }
+
+        /* 验证结果 */
+        .validate-result {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .validate-pass { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+        .validate-fail { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+        .validate-info { background: #e6f7ff; border: 1px solid #91d5ff; color: #096dd9; }
+
+        /* 解析详情 */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 6px 12px;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .detail-grid .label { color: #999; text-align: right; }
+        .detail-grid .value { font-family: monospace; font-weight: 500; }
+        .detail-grid .highlight { color: #e65100; font-weight: 700; }
+
+        /* 按钮 */
+        .btn-group { display: flex; gap: 12px; margin-top: 16px; }
+        .btn {
+            flex: 1;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #e65100; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #bf360c; }
+        .btn-default { background: #f0f0f0; color: #333; }
+        .btn-default:hover:not(:disabled) { background: #e0e0e0; }
+
+        /* ZPL */
+        .zpl-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* 规则说明 */
+        .rule-box {
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #614700;
+        }
+        .rule-box code {
+            background: #fff1b8;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: opacity 0.3s;
+        }
+        .toast-success { background: #52c41a; color: white; }
+        .toast-error { background: #ff4d4f; color: white; }
+        .toast-info { background: #0078d4; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📦 SSCC-18 标签打印测试</h1>
+    <span id="printerStatus" class="status-badge status-warn">检测中...</span>
+</div>
+
+<div class="container">
+
+    <!-- 规则说明 -->
+    <div class="card">
+        <div class="card-title">📖 SSCC-18 编码规则</div>
+        <div class="rule-box">
+            SSCC-18 = <code>1位扩展</code> + <code>7-10位公司前缀</code> + <code>6-9位序列号</code> + <code>1位校验码</code> = <strong>共18位数字</strong><br>
+            • 条码类型：GS1-128（Application Identifier = <code>00</code>）<br>
+            • 第18位为 Mod-10 校验码，由前17位计算<br>
+            • 人可读格式：<code>(00) 1 2345678 901234567 8</code>
+        </div>
+    </div>
+
+    <!-- 扫码区 -->
+    <div class="card">
+        <div class="card-title">📷 扫码验证</div>
+        <input type="text" id="scanInput" class="scan-input"
+               placeholder="请扫描 SSCC-18 条码..." autofocus autocomplete="off"
+               maxlength="20">
+        <div id="validateResult" class="validate-result"></div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" id="btnPrint" disabled onclick="doPrint()">
+                🖨️ 打印此标签
+            </button>
+            <button class="btn btn-default" onclick="printTestLabel()">
+                📋 打印测试标签
+            </button>
+        </div>
+    </div>
+
+    <!-- ZPL -->
+    <div class="card">
+        <button class="btn btn-default" style="width:100%;" onclick="toggleZpl()">查看 ZPL 指令</button>
+        <div class="zpl-output" id="zplOutput"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// SSCC-18 校验算法 (Mod-10)
+// ============================================================
+function sscc18CalcCheckDigit(digits17) {
+    // digits17: 17位字符串
+    let sum = 0;
+    for (let i = 0; i < 17; i++) {
+        const d = parseInt(digits17[i]);
+        // 奇数位(第1,3,5...即i=0,2,4...) × 3，偶数位 × 1
+        sum += (i % 2 === 0) ? d * 3 : d * 1;
+    }
+    const remainder = sum % 10;
+    return remainder === 0 ? 0 : 10 - remainder;
+}
+
+// 验证 SSCC-18
+function validateSSCC18(code) {
+    const trimmed = code.trim();
+
+    // 检查是否全是数字
+    if (!/^\d+$/.test(trimmed)) {
+        return { valid: false, msg: '❌ SSCC-18 必须全部是数字', type: 'fail' };
+    }
+
+    // 检查长度
+    if (trimmed.length !== 18) {
+        return { valid: false, msg: `❌ 长度不正确：${trimmed.length}位（需要18位）`, type: 'fail' };
+    }
+
+    // 计算校验位
+    const expectedCheck = sscc18CalcCheckDigit(trimmed.substring(0, 17));
+    const actualCheck = parseInt(trimmed[17]);
+
+    if (expectedCheck !== actualCheck) {
+        return {
+            valid: false,
+            msg: `❌ 校验位错误：期望 ${expectedCheck}，实际 ${actualCheck}`,
+            type: 'fail',
+            code: trimmed
+        };
+    }
+
+    // 解析各段
+    const extension = trimmed[0];
+    // 尝试推断公司前缀长度（常见为7-10位）
+    const companyPrefix = trimmed.substring(1, 8);  // 默认取7位
+    const serialRef = trimmed.substring(8, 17);
+    const checkDigit = trimmed[17];
+
+    return {
+        valid: true,
+        msg: `✅ SSCC-18 验证通过`,
+        type: 'pass',
+        code: trimmed,
+        detail: {
+            full: trimmed,
+            extension,
+            companyPrefix,
+            serialRef,
+            checkDigit: String(checkDigit),
+            humanReadable: `(00) ${extension} ${companyPrefix} ${serialRef} ${checkDigit}`
+        }
+    };
+}
+
+// ============================================================
+// ZPL 生成
+// ============================================================
+function generateSSCC18Zpl(code, topText) {
+    let zpl = '^XA\n';
+
+    // 中文支持
+    zpl += '^CI28\n';
+    zpl += '^JMA\n';
+    zpl += '^SEE:GB18030.DAT^FS\n';
+    zpl += '^CWZ,E:SIMSUN.FNT\n';
+
+    // 标签尺寸 (50mm x 30mm)
+    zpl += '^LL600\n';
+    zpl += '^PW800\n';
+
+    // 上方文字
+    if (topText) {
+        const fontSize = 22;
+        const x = 400 - (topText.length * fontSize) / 2;
+        zpl += '^FO' + Math.round(x) + ',20\n';
+        zpl += '^A0,N' + fontSize + '\n';
+        zpl += '^FD' + topText + '^FS\n';
+    }
+
+    // GS1-128 条码 (SSCC-18: AI=00 + 18位)
+    const barcodeY = topText ? 55 : 25;
+    const barcodeX = 80;
+    zpl += '^FO' + barcodeX + ',' + barcodeY + '\n';
+    zpl += '^BY3\n';
+    zpl += '^BCN,160,Y,N,N\n';
+    // AI "00" 前缀 + 18位编码
+    zpl += '^FD00' + code + '^FS\n';
+
+    // 人可读文字 (GS1格式)
+    const parsed = validateSSCC18(code);
+    const hrText = parsed.valid ? parsed.detail.humanReadable : code;
+    const hrY = barcodeY + 180;
+    const hrFontSize = 18;
+    const hrX = 400 - (hrText.length * hrFontSize * 0.4);
+    zpl += '^FO' + Math.round(hrX) + ',' + hrY + '\n';
+    zpl += '^A0,N' + hrFontSize + '\n';
+    zpl += '^FD' + hrText + '^FS\n';
+
+    // 底部日期
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const dateX = 400 - (dateStr.length * 8);
+    zpl += '^FO' + Math.round(dateX) + ',' + (hrY + 30) + '\n';
+    zpl += '^A0,N16\n';
+    zpl += '^FD' + dateStr + '^FS\n';
+
+    zpl += '^XZ\n';
+    return zpl;
+}
+
+// 默认测试用 SSCC-18
+function getDefaultSSCC18() {
+    const base = '1570111234567890'; // 17位
+    const check = sscc18CalcCheckDigit(base);
+    return base + check;
+}
+
+// ============================================================
+// 打印
+// ============================================================
+const BROWSER_PRINT_URL = 'http://127.0.0.1:9100';
+let currentDevice = null;
+
+async function initPrinter() {
+    const el = document.getElementById('printerStatus');
+    try {
+        const resp = await fetch(`${BROWSER_PRINT_URL}/default?type=printer`);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        currentDevice = await resp.json();
+        el.textContent = '✅ ' + currentDevice.name;
+        el.className = 'status-badge status-ok';
+    } catch (e) {
+        el.textContent = '❌ 未连接';
+        el.className = 'status-badge status-err';
+    }
+}
+
+async function sendZpl(zpl) {
+    if (!currentDevice) throw new Error('打印机未连接');
+    const resp = await fetch(`${BROWSER_PRINT_URL}/write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device: currentDevice, data: zpl })
+    });
+    if (!resp.ok) throw new Error('打印失败: ' + await resp.text());
+    return await resp.json();
+}
+
+async function doPrint() {
+    const code = document.getElementById('scanInput').value.trim();
+    if (!code) { showToast('请输入条码', 'error'); return; }
+    if (!currentDevice) { showToast('打印机未连接', 'error'); return; }
+
+    const btn = document.getElementById('btnPrint');
+    btn.disabled = true;
+    btn.textContent = '⏳ 打印中...';
+    try {
+        const zpl = generateSSCC18Zpl(code);
+        await sendZpl(zpl);
+        showToast('✅ 打印成功', 'success');
+        document.getElementById('scanInput').value = '';
+        document.getElementById('validateResult').style.display = 'none';
+        btn.disabled = true;
+    } catch (e) {
+        showToast('打印失败: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🖨️ 打印此标签';
+    }
+}
+
+async function printTestLabel() {
+    if (!currentDevice) { showToast('打印机未连接', 'error'); return; }
+    try {
+        const testCode = getDefaultSSCC18();
+        const zpl = generateSSCC18Zpl(testCode, 'SSCC-18 TEST');
+        await sendZpl(zpl);
+        showToast(`✅ 测试标签已打印: ${testCode}`, 'success');
+    } catch (e) {
+        showToast('打印失败: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+// 扫码处理
+// ============================================================
+function handleScan(code) {
+    const resultEl = document.getElementById('validateResult');
+    const btnPrint = document.getElementById('btnPrint');
+
+    if (!code) {
+        resultEl.style.display = 'none';
+        btnPrint.disabled = true;
+        return;
+    }
+
+    const result = validateSSCC18(code);
+
+    if (result.valid) {
+        resultEl.className = 'validate-result validate-pass';
+        resultEl.innerHTML = result.msg + `
+            <div class="detail-grid">
+                <span class="label">完整编码</span><span class="value highlight">${result.detail.full}</span>
+                <span class="label">扩展位</span><span class="value">${result.detail.extension}</span>
+                <span class="label">公司前缀</span><span class="value">${result.detail.companyPrefix}</span>
+                <span class="label">序列号</span><span class="value">${result.detail.serialRef}</span>
+                <span class="label">校验位</span><span class="value highlight">${result.detail.checkDigit}</span>
+                <span class="label">人可读</span><span class="value">${result.detail.humanReadable}</span>
+            </div>`;
+        btnPrint.disabled = false;
+    } else {
+        resultEl.className = 'validate-result validate-fail';
+        resultEl.innerHTML = result.msg;
+        btnPrint.disabled = true;
+    }
+    resultEl.style.display = 'block';
+}
+
+// ============================================================
+// 工具
+// ============================================================
+function toggleZpl() {
+    const el = document.getElementById('zplOutput');
+    if (el.style.display === 'none') {
+        const code = document.getElementById('scanInput').value.trim() || getDefaultSSCC18();
+        el.textContent = generateSSCC18Zpl(code);
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; }, 2500);
+    setTimeout(() => { t.remove(); }, 3000);
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    initPrinter();
+
+    const scanInput = document.getElementById('scanInput');
+    scanInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleScan(scanInput.value.trim());
+        }
+    });
+    scanInput.addEventListener('input', () => {
+        handleScan(scanInput.value.trim());
+    });
+
+    // 点击空白处回到输入框
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('button') && !e.target.closest('input')) {
+            scanInput.focus();
+        }
+    });
+});
+</script>
+</body>
+</html>
