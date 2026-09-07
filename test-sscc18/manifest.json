@@ -1,0 +1,13 @@
+{
+    "name": "SSCC-18 标签打印工具",
+    "short_name": "SSCC打印",
+    "description": "丹佛斯 SSCC-18 条码标签打印",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#f5f5f5",
+    "theme_color": "#e60000",
+    "icons": [
+        { "src": "assets/new-logo-danfoss.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "assets/new-logo-danfoss.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}
