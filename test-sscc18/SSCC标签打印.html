@@ -733,16 +733,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const scanInput = document.getElementById('scanInput');
     scanInput.focus();
 
-    // 轮询检测输入框值变化，扫码枪无论什么方式输入都能捕获
-    let lastVal = '';
-    setInterval(() => {
-        const v = scanInput.value.trim();
-        if (v.length >= 18 && v !== lastVal) {
-            lastVal = v;
-            handleScan(v);
+    // 检测扫码完成：最后一个字符到达后300ms无新字符 → 触发
+    let scanTimer = null;
+    function scheduleScan() {
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(() => {
+            const v = scanInput.value.trim();
+            if (v.length >= 18) handleScan(v);
+        }, 300);
+    }
+    scanInput.addEventListener('input', scheduleScan);
+    // 兼容带回车的扫码枪
+    scanInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(scanTimer);
+            handleScan(scanInput.value.trim());
         }
-        if (!v) lastVal = '';
-    }, 200);
+    });
 
     document.getElementById('labelSize').addEventListener('change', e => {
         document.getElementById('customSizeGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
