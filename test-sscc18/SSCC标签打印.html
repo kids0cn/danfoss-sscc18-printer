@@ -423,7 +423,18 @@ const defaultSettings = {
 };
 
 function loadSettings() {
-    try { return { ...defaultSettings, ...JSON.parse(localStorage.getItem(SETTINGS_KEY)) }; }
+    try {
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+        if (!saved) return { ...defaultSettings };
+        // v2 迁移：偏移量从 dots 改为 mm（旧值是整数且偏大）
+        if (Number.isInteger(Number(saved.barcodeX)) && Number(saved.barcodeX) >= 10) {
+            saved.barcodeX = String(Number(saved.barcodeX) / 8);
+            saved.barcodeY = String(Number(saved.barcodeY) / 8);
+            saved.textYOffset = String(Number(saved.textYOffset || 0) / 8);
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved));
+        }
+        return { ...defaultSettings, ...saved };
+    }
     catch { return { ...defaultSettings }; }
 }
 
