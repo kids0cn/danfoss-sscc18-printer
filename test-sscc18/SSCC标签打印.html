@@ -521,7 +521,7 @@ function renderHistory() {
 
 function reprint(code) {
     document.getElementById('scanInput').value = code;
-    doPrint();
+    doPrint(code);
 }
 
 // ============================================================
@@ -614,8 +614,8 @@ async function sendZpl(zpl) {
     return new Promise((ok, err) => currentDevice.send(zpl, ok, e => err(new Error(e))));
 }
 
-async function doPrint() {
-    const code = document.getElementById('scanInput').value.trim();
+async function doPrint(codeOverride) {
+    const code = (codeOverride || '').trim() || document.getElementById('scanInput').value.trim();
     if (!code) return;
     if (!currentDevice) { showToast('打印机未连接', 'err'); return; }
     try {
@@ -665,11 +665,9 @@ function handleScan(raw) {
         }
         el.innerHTML = info;
         input.style.borderColor = '#52c41a';
-        if (!loadSettings().autoPrint) {
-            document.getElementById('btnPrint').disabled = false;
-        }
-        // 自动打印：延迟200ms让用户看到验证结果
-        if (loadSettings().autoPrint) setTimeout(doPrint, 200);
+        document.getElementById('btnPrint').disabled = false;
+        // 自动打印：延迟200ms让用户看到验证结果，传递代码避免竞态
+        if (loadSettings().autoPrint) setTimeout(() => doPrint(sscc), 200);
     } else {
         el.className = 'validate-msg v-fail';
         el.innerHTML = v.msg;
