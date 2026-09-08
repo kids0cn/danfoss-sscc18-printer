@@ -714,7 +714,17 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistory();
 
     const scanInput = document.getElementById('scanInput');
-    scanInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleScan(scanInput.value.trim()); } });
+    // 扫码枪无回车：用 input 事件 + 防抖，长度达到18/20位自动触发
+    let scanTimer = null;
+    scanInput.addEventListener('input', () => {
+        clearTimeout(scanTimer);
+        const v = scanInput.value.trim();
+        if (v.length === 18 || v.length === 20) {
+            scanTimer = setTimeout(() => handleScan(v), 300);
+        }
+    });
+    // 兼容带回车的扫码枪
+    scanInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(scanTimer); handleScan(scanInput.value.trim()); } });
 
     document.getElementById('labelSize').addEventListener('change', e => {
         document.getElementById('customSizeGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
