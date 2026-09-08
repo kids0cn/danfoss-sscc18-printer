@@ -338,12 +338,12 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>X 偏移 (dots) <span style="font-weight:normal;color:#999;font-size:11px;">8dots=1mm</span></label>
-                    <input type="number" id="barcodeX" value="20" min="0" max="800" step="10">
+                    <label>X 偏移 (mm) <span style="font-weight:normal;color:#999;font-size:11px;">×8=dots</span></label>
+                    <input type="number" id="barcodeX" value="2.5" min="0" max="100" step="0.5">
                 </div>
                 <div class="form-group">
-                    <label>Y 偏移 (dots) <span style="font-weight:normal;color:#999;font-size:11px;">8dots=1mm</span></label>
-                    <input type="number" id="barcodeY" value="50" min="0" max="800" step="10">
+                    <label>Y 偏移 (mm) <span style="font-weight:normal;color:#999;font-size:11px;">×8=dots</span></label>
+                    <input type="number" id="barcodeY" value="6.25" min="0" max="100" step="0.5">
                 </div>
             </div>
         </div>
@@ -386,8 +386,8 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>文字 Y 偏移 (dots) <span style="font-weight:normal;color:#999;font-size:11px;">8dots=1mm</span></label>
-                    <input type="number" id="textYOffset" value="0" min="-200" max="400" step="5">
+                    <label>文字 Y 偏移 (mm) <span style="font-weight:normal;color:#999;font-size:11px;">×8=dots</span></label>
+                    <input type="number" id="textYOffset" value="0" min="-25" max="50" step="0.5">
                 </div>
                 <div class="form-group">
                     <label>日期显示</label>
@@ -417,7 +417,7 @@ const defaultSettings = {
     autoPrint: true,
     labelSize: '102x63', customW: 102, customH: 63,
     orientation: 'landscape', density: '16', printCopies: '1',
-    barcodeHeight: '25', barcodeWidth: '3', barcodeX: '20', barcodeY: '50',
+    barcodeHeight: '25', barcodeWidth: '3', barcodeX: '2.5', barcodeY: '6.25',
     topText: '', topFontSize: '22', hrFontSize: '18', dateFontSize: '16',
     textYOffset: '0', showDate: 'yes'
 };
@@ -439,9 +439,12 @@ function getSettings() {
         labelW: lw, labelH: lh,
         labelWidthDots: Math.round(lw * DOTS), labelHeightDots: Math.round(lh * DOTS),
         bcHeightDots: Math.round((Number(s.barcodeHeight)||25) * DOTS),
-        bcWidth: Number(s.barcodeWidth)||3, bcX: Number(s.barcodeX)||20, bcY: Number(s.barcodeY)||50,
+        bcWidth: Number(s.barcodeWidth)||3,
+        bcX: Math.round((Number(s.barcodeX)||2.5) * DOTS),
+        bcY: Math.round((Number(s.barcodeY)||6.25) * DOTS),
         topFontSize: Number(s.topFontSize)||22, hrFontSize: Number(s.hrFontSize)||18,
-        dateFontSize: Number(s.dateFontSize)||16, textYOffset: Number(s.textYOffset)||0,
+        dateFontSize: Number(s.dateFontSize)||16,
+        textYOffset: Math.round((Number(s.textYOffset)||0) * DOTS),
         copies: Number(s.printCopies)||1
     };
 }
