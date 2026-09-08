@@ -231,7 +231,7 @@
                    placeholder="请扫描 SSCC-18 条码..." autofocus autocomplete="off" maxlength="20">
             <div class="scan-hint">扫描枪扫码后自动识别并打印</div>
             <div id="validateMsg" class="validate-msg"></div>
-            <button class="btn-print" id="btnPrint" onclick="doPrint()">🖨️ 打印此标签</button>
+            <button class="btn-print" id="btnPrint" onclick="doPrint()" disabled>🖨️ 打印此标签</button>
         </div>
 
         <div class="history-box">
@@ -615,14 +615,19 @@ async function sendZpl(zpl) {
 }
 
 async function doPrint(codeOverride) {
-    const code = (codeOverride || '').trim() || document.getElementById('scanInput').value.trim();
-    if (!code) return;
+    const raw = (codeOverride || '').trim() || document.getElementById('scanInput').value.trim();
+    if (!raw) return;
     if (!currentDevice) { showToast('打印机未连接', 'err'); return; }
+    // 校验 SSCC-18
+    const norm = normalizeScanInput(raw);
+    if (norm.code.length !== 18) { showToast('❌ 需要18位SSCC码', 'err'); return; }
+    const v = validateSSCC18(norm.code);
+    if (!v.valid) { showToast(v.msg, 'err'); return; }
     try {
         const s = getSettings();
-        for (let i = 0; i < s.copies; i++) await sendZpl(generateSSCC18Zpl(code));
+        for (let i = 0; i < s.copies; i++) await sendZpl(generateSSCC18Zpl(norm.code));
         showToast('✅ 打印成功', 'ok');
-        addHistory(code);
+        addHistory(norm.code);
         document.getElementById('scanInput').value = '';
         document.getElementById('scanInput').style.borderColor = '#ddd';
         document.getElementById('validateMsg').style.display = 'none';
@@ -715,17 +720,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const scanInput = document.getElementById('scanInput');
     scanInput.focus();
 
-    // 轮询检测输入框值变化，扫码枪无论怎么输入都能捕获
-    let lastVal = '';
-    setInterval(() => {
-        const v = scanInput.value.trim();
-        if (v.length >= 18 && v !== lastVal) {
-            lastVal = v;
-            handleScan(v);
+    // 扫码枪输入完成（长度>=18）自动触发验证+打印
+    scanInput.addEventListener('input', () => {
+        if (scanInput.value.trim().length >= 18) {
+            handleScan(scanInput.value.trim());
         }
-        // 输入框被清空后重置，允许相同码再次触发
-        if (!v) lastVal = '';
-    }, 200);
+    });
 
     document.getElementById('labelSize').addEventListener('change', e => {
         document.getElementById('customSizeGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
