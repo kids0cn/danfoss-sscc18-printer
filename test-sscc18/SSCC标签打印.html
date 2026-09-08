@@ -666,8 +666,7 @@ function handleScan(raw) {
         el.innerHTML = info;
         input.style.borderColor = '#52c41a';
         document.getElementById('btnPrint').disabled = false;
-        // 自动打印：延迟200ms让用户看到验证结果，传递代码避免竞态
-        if (loadSettings().autoPrint) setTimeout(() => doPrint(sscc), 200);
+        if (loadSettings().autoPrint) doPrint(sscc);
     } else {
         el.className = 'validate-msg v-fail';
         el.innerHTML = v.msg;
@@ -714,26 +713,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistory();
 
     const scanInput = document.getElementById('scanInput');
-    // 确保输入框获得焦点（部分浏览器阻止 autofocus）
-    setTimeout(() => scanInput.focus(), 100);
+    scanInput.focus();
 
-    // 扫码枪无回车：用防抖检测输入完成
-    // 同时监听 input/keyup/keydown 三重保险
-    let scanTimer = null;
-    function tryScan() {
-        clearTimeout(scanTimer);
-        const v = scanInput.value.trim();
-        if (v.length >= 18) {
-            scanTimer = setTimeout(() => handleScan(v), 250);
-        }
-    }
-    scanInput.addEventListener('input', tryScan);
-    scanInput.addEventListener('keyup', tryScan);
-    // 兼容带回车的扫码枪 + 用户手动按回车
-    scanInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            clearTimeout(scanTimer);
+    // 扫码枪输入完成（长度>=18）直接触发
+    scanInput.addEventListener('input', () => {
+        if (scanInput.value.trim().length >= 18) {
             handleScan(scanInput.value.trim());
         }
     });
