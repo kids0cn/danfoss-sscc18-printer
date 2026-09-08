@@ -167,6 +167,9 @@
             border: 1px solid #ddd; border-radius: 6px;
             font-size: 14px; outline: none; background: #fff;
         }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
         .form-group select:focus,
         .form-group input:focus { border-color: var(--df-red); }
         .form-check { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
@@ -309,9 +312,10 @@
                 <div class="form-group">
                     <label>打印份数</label>
                     <select id="printCopies">
-                        <option value="1" selected>1 份</option>
+                        <option value="1">1 份</option>
                         <option value="2">2 份</option>
                         <option value="3">3 份</option>
+                        <option value="4" selected>4 份</option>
                         <option value="5">5 份</option>
                     </select>
                 </div>
@@ -339,11 +343,11 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>X 偏移 (mm) <span style="font-weight:normal;color:#999;font-size:11px;">×8=dots</span></label>
-                    <input type="number" id="barcodeX" value="2.5" min="0" max="100" step="0.5">
+                    <input type="number" id="barcodeX" value="2" min="0" max="100" step="0.5">
                 </div>
                 <div class="form-group">
                     <label>Y 偏移 (mm) <span style="font-weight:normal;color:#999;font-size:11px;">×8=dots</span></label>
-                    <input type="number" id="barcodeY" value="6.25" min="0" max="100" step="0.5">
+                    <input type="number" id="barcodeY" value="20" min="0" max="100" step="0.5">
                 </div>
             </div>
         </div>
@@ -352,36 +356,12 @@
             <h6>🔤 文字设置</h6>
             <div class="form-row">
                 <div class="form-group">
-                    <label>顶部标题</label>
-                    <input type="text" id="topText" placeholder="如: SSCC-18 标签">
-                </div>
-                <div class="form-group">
-                    <label>标题字号</label>
-                    <select id="topFontSize">
-                        <option value="18">18</option>
-                        <option value="22" selected>22</option>
-                        <option value="28">28</option>
-                        <option value="36">36</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
                     <label>人可读字号</label>
-                    <select id="hrFontSize">
-                        <option value="14">14</option>
-                        <option value="18" selected>18</option>
-                        <option value="22">22</option>
-                        <option value="28">28</option>
-                    </select>
+                    <input type="number" id="hrFontSize" value="30" min="10" max="60">
                 </div>
                 <div class="form-group">
                     <label>日期字号</label>
-                    <select id="dateFontSize">
-                        <option value="14">14</option>
-                        <option value="16" selected>16</option>
-                        <option value="20">20</option>
-                    </select>
+                    <input type="number" id="dateFontSize" value="16" min="10" max="60">
                 </div>
             </div>
             <div class="form-row">
@@ -392,8 +372,8 @@
                 <div class="form-group">
                     <label>日期显示</label>
                     <select id="showDate">
-                        <option value="yes" selected>显示</option>
-                        <option value="no">不显示</option>
+                        <option value="yes">显示</option>
+                        <option value="no" selected>不显示</option>
                     </select>
                 </div>
             </div>
@@ -416,10 +396,10 @@ const HISTORY_KEY_PREFIX = 'sscc18_history_';
 const defaultSettings = {
     autoPrint: true,
     labelSize: '102x63', customW: 102, customH: 63,
-    orientation: 'landscape', density: '16', printCopies: '1',
-    barcodeHeight: '25', barcodeWidth: '3', barcodeX: '2.5', barcodeY: '6.25',
-    topText: '', topFontSize: '22', hrFontSize: '18', dateFontSize: '16',
-    textYOffset: '0', showDate: 'yes'
+    orientation: 'landscape', density: '16', printCopies: '4',
+    barcodeHeight: '25', barcodeWidth: '3', barcodeX: '2', barcodeY: '20',
+    hrFontSize: '30', dateFontSize: '16',
+    textYOffset: '0', showDate: 'no'
 };
 
 function loadSettings() {
@@ -463,7 +443,7 @@ function getSettings() {
 function saveSettings() {
     const fields = ['autoPrint','labelSize','customW','customH','orientation','density','printCopies',
         'barcodeHeight','barcodeWidth','barcodeX','barcodeY',
-        'topText','topFontSize','hrFontSize','dateFontSize','textYOffset','showDate'];
+        'hrFontSize','dateFontSize','textYOffset','showDate'];
     const data = {};
     fields.forEach(id => { const el = document.getElementById(id); data[id] = el.type === 'checkbox' ? el.checked : el.value; });
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
@@ -578,19 +558,13 @@ function getDefaultSSCC18() {
 // ============================================================
 // ZPL 生成
 // ============================================================
-function generateSSCC18Zpl(code, titleOverride) {
+function generateSSCC18Zpl(code) {
     const s = getSettings();
     const cx = Math.round(s.labelWidthDots / 2);
     let z = '^XA\n^CI28\n^JMA\n^SEE:GB18030.DAT^FS\n^CWZ,E:SIMSUN.FNT\n';
-    z += '^MD' + s.density + '\n^LL' + s.labelWidthDots + '\n^PW' + s.labelHeightDots + '\n';
+    z += '^MD' + s.density + '\n^LL' + s.labelHeightDots + '\n^PW' + s.labelWidthDots + '\n';
 
-    const title = titleOverride || s.topText;
     let y = s.bcY;
-    if (title) {
-        const tx = cx - Math.round(title.length * s.topFontSize * 0.35);
-        z += '^FO' + tx + ',' + y + '\n^A0,N' + s.topFontSize + '\n^FD' + title + '^FS\n';
-        y += s.topFontSize + 10;
-    }
     z += '^FO' + s.bcX + ',' + y + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,N,N\n^FD00' + code + '^FS\n';
 
     const v = validateSSCC18(code);
@@ -655,7 +629,7 @@ async function printTestLabel() {
         const raw = getDefaultSSCC18();
         const norm = normalizeScanInput(raw);
         for (let i = 0; i < getSettings().copies; i++)
-            await sendZpl(generateSSCC18Zpl(norm.code, 'SSCC-18 TEST'));
+            await sendZpl(generateSSCC18Zpl(norm.code));
         showToast('✅ 测试标签已打印', 'ok');
     } catch (e) { showToast('打印失败: ' + e.message, 'err'); }
 }
