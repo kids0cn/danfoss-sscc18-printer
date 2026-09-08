@@ -582,26 +582,26 @@ function generateSSCC18Zpl(code, titleOverride) {
     const s = getSettings();
     const cx = Math.round(s.labelWidthDots / 2);
     let z = '^XA\n^CI28\n^JMA\n^SEE:GB18030.DAT^FS\n^CWZ,E:SIMSUN.FNT\n';
-    z += '^MD' + s.density + '\n^LL' + s.labelHeightDots + '\n^PW' + s.labelWidthDots + '\n';
+    z += '^MD' + s.density + '\n^LL' + s.labelWidthDots + '\n^PW' + s.labelHeightDots + '\n';
 
     const title = titleOverride || s.topText;
     let y = s.bcY;
     if (title) {
         const tx = cx - Math.round(title.length * s.topFontSize * 0.35);
-        z += '^FO' + y + ',' + tx + '\n^A0,N' + s.topFontSize + '\n^FD' + title + '^FS\n';
+        z += '^FO' + tx + ',' + y + '\n^A0,N' + s.topFontSize + '\n^FD' + title + '^FS\n';
         y += s.topFontSize + 10;
     }
-    z += '^FO' + y + ',' + s.bcX + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,N,N\n^FD00' + code + '^FS\n';
+    z += '^FO' + s.bcX + ',' + y + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,N,N\n^FD00' + code + '^FS\n';
 
     const v = validateSSCC18(code);
     const hr = v.valid ? v.detail.humanReadable : code;
     const hrY = y + s.bcHeightDots + 8;
-    z += '^FO' + (hrY + s.textYOffset) + ',' + (cx - Math.round(hr.length * s.hrFontSize * 0.35)) + '\n^A0,N' + s.hrFontSize + '\n^FD' + hr + '^FS\n';
+    z += '^FO' + (cx - Math.round(hr.length * s.hrFontSize * 0.35)) + ',' + (hrY + s.textYOffset) + '\n^A0,N' + s.hrFontSize + '\n^FD' + hr + '^FS\n';
 
     if (s.showDate === 'yes') {
         const d = new Date(); const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
         const dy = hrY + s.hrFontSize + 6 + s.textYOffset;
-        z += '^FO' + dy + ',' + (cx - Math.round(ds.length * s.dateFontSize * 0.35)) + '\n^A0,N' + s.dateFontSize + '\n^FD' + ds + '^FS\n';
+        z += '^FO' + (cx - Math.round(ds.length * s.dateFontSize * 0.35)) + ',' + dy + '\n^A0,N' + s.dateFontSize + '\n^FD' + ds + '^FS\n';
     }
     return z + '^XZ\n';
 }
