@@ -715,12 +715,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const scanInput = document.getElementById('scanInput');
     scanInput.focus();
 
-    // 扫码枪输入完成（长度>=18）直接触发
-    scanInput.addEventListener('input', () => {
-        if (scanInput.value.trim().length >= 18) {
-            handleScan(scanInput.value.trim());
+    // 轮询检测输入框值变化，扫码枪无论怎么输入都能捕获
+    let lastVal = '';
+    setInterval(() => {
+        const v = scanInput.value.trim();
+        if (v.length >= 18 && v !== lastVal) {
+            lastVal = v;
+            handleScan(v);
         }
-    });
+        // 输入框被清空后重置，允许相同码再次触发
+        if (!v) lastVal = '';
+    }, 200);
 
     document.getElementById('labelSize').addEventListener('change', e => {
         document.getElementById('customSizeGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
