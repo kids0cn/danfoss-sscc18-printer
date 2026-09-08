@@ -652,12 +652,11 @@ async function printTestLabel() {
 function handleScan(raw) {
     if (!raw) { document.getElementById('validateMsg').style.display = 'none'; return; }
 
-    // 自动识别：20位含00前缀 → 提取18位SSCC
+    // 自动识别：20位含00前缀 → 提取18位SSCC（不改输入框）
     const norm = normalizeScanInput(raw);
     const sscc = norm.code;
-    document.getElementById('scanInput').value = sscc;
 
-    // 验证能否转化为合法SSCC-18
+    // 验证能否转化为合法SSC-18
     const v = validateSSCC18(sscc);
     const el = document.getElementById('validateMsg');
     const input = document.getElementById('scanInput');
