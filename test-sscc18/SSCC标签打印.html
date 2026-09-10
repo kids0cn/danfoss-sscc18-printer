@@ -237,6 +237,15 @@
             <button class="btn-print" id="btnPrint" onclick="doPrint()" disabled>🖨️ 打印此标签</button>
         </div>
 
+        <!-- 条码预览 -->
+        <div class="scan-box" id="previewBox" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:13px;color:#999;">📋 ZPL 预览</span>
+                <a id="previewLink" href="#" target="_blank" style="font-size:12px;color:#0078d4;text-decoration:none;">🔗 在线渲染</a>
+            </div>
+            <textarea id="zplCode" readonly style="width:100%;height:120px;font-family:monospace;font-size:12px;border:1px solid #ddd;border-radius:6px;padding:8px;resize:none;background:#f9f9f9;"></textarea>
+        </div>
+
         <div class="history-box">
             <div class="history-title">
                 🕐 今日扫码记录
@@ -428,7 +437,8 @@ function getSettings() {
     return {
         ...s,
         labelW: lw, labelH: lh,
-        labelWidthDots: Math.round(lw * DOTS), labelHeightDots: Math.round(lh * DOTS),
+        labelWidthDots: Math.min(Math.round(lw * DOTS), 815),
+        labelHeightDots: Math.round(lh * DOTS),
         bcHeightDots: Math.round((Number(s.barcodeHeight)||25) * DOTS),
         bcWidth: Number(s.barcodeWidth)||3,
         bcX: Math.round((Number(s.barcodeX)||2.5) * DOTS),
@@ -545,7 +555,7 @@ function validateSSCC18(code) {
         detail: {
             full: t, extension: t[0], companyPrefix: t.slice(1,8),
             serialRef: t.slice(8,17), checkDigit: t[17],
-            humanReadable: `(00) ${t[0]} ${t.slice(1,8)} ${t.slice(8,17)} ${t[17]}`
+            humanReadable: `(00) ${t}`
         }
     };
 }
@@ -565,16 +575,17 @@ function generateSSCC18Zpl(code) {
     z += '^MD' + s.density + '\n^LL' + s.labelHeightDots + '\n^PW' + s.labelWidthDots + '\n';
 
     let y = s.bcY;
-    z += '^FO' + s.bcX + ',' + y + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,N,N\n^FD00' + code + '^FS\n';
+    // GS1-128: >8 = FNC1, N=关闭打印机人可读(我们自己打), Y=UCC/EAN模式, Y=额外高度
+    z += '^FO' + s.bcX + ',' + y + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,Y,Y\n^FD>8' + code + '^FS\n';
 
-    const v = validateSSCC18(code);
-    const hr = v.valid ? v.detail.humanReadable : code;
-    const hrY = y + s.bcHeightDots + 8;
-    z += '^FO' + (cx - Math.round(hr.length * s.hrFontSize * 0.35)) + ',' + (hrY + s.textYOffset) + '\n^A0,N' + s.hrFontSize + '\n^FD' + hr + '^FS\n';
+    // 人可读文字：(00) + 18位，放在条码下方
+    const hr = '(00)' + code;
+    const hrY = y + s.bcHeightDots + 8 + s.textYOffset;
+    z += '^FO' + (cx - Math.round(hr.length * s.hrFontSize * 0.35)) + ',' + hrY + '\n^A0,N' + s.hrFontSize + '\n^FD' + hr + '^FS\n';
 
     if (s.showDate === 'yes') {
         const d = new Date(); const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        const dy = hrY + s.hrFontSize + 6 + s.textYOffset;
+        const dy = hrY + s.hrFontSize + 6;
         z += '^FO' + (cx - Math.round(ds.length * s.dateFontSize * 0.35)) + ',' + dy + '\n^A0,N' + s.dateFontSize + '\n^FD' + ds + '^FS\n';
     }
     return z + '^XZ\n';
@@ -635,6 +646,27 @@ async function printTestLabel() {
 }
 
 // ============================================================
+// 条码预览
+// ============================================================
+function renderPreview(code) {
+    const box = document.getElementById('previewBox');
+    const textarea = document.getElementById('zplCode');
+    const link = document.getElementById('previewLink');
+    try {
+        const zpl = generateSSCC18Zpl(code);
+        textarea.value = zpl;
+        const encoded = encodeURIComponent(zpl);
+        const s = getSettings();
+        const wMm = s.labelW;
+        const hMm = s.labelH;
+        link.href = `http://labelary.com/viewer.html?density=8&quality=grayscale&width=${wMm/25.4}&height=${hMm/25.4}&units=inches&index=0&rotation=0&zpl=${encoded}`;
+        box.style.display = 'block';
+    } catch (e) {
+        box.style.display = 'none';
+    }
+}
+
+// ============================================================
 // 扫码处理
 // ============================================================
 function handleScan(raw) {
@@ -658,6 +690,7 @@ function handleScan(raw) {
         el.innerHTML = info;
         input.style.borderColor = '#52c41a';
         document.getElementById('btnPrint').disabled = false;
+        renderPreview(sscc);
         if (loadSettings().autoPrint) doPrint(sscc);
     } else {
         el.className = 'validate-msg v-fail';
