@@ -314,3 +314,12 @@
 - test-sscc18/gs1_v1_amp.zpl
 - test-sscc18/gs1_v2_raw.zpl
 - test-sscc18/gs1_v3_20digit.zpl
+---
+### 2026-09-11 15:53 | c5d7cc2 (master)
+- **提交**: GS1-128 FNC1修正、字体语法修正、默认参数更新
+- **作者**: kids0cn
+- **文件**: 4 个文件变更
+- .hermes-progress
+- "test-sscc18/SSCC\346\211\223\346\240\207\347\255\276.html"
+- test-sscc18/gs1_official.zpl
+- "test-sscc18/sscc\346\211\223\346\240\207\347\255\276v5_0911.zip"
