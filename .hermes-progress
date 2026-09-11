@@ -289,3 +289,18 @@
 - **作者**: kids0cn
 - **文件**: 1 个文件变更
 - .hermes-progress
+---
+### 2026-09-10 22:36 | 5cd8292 (master)
+- **提交**: GS1-128编码修正：FNC1用>8、人可读手动控制、ZPL预览
+- **作者**: kids0cn
+- **文件**: 10 个文件变更
+- .hermes-progress
+- code_128.pdf
+- "test-sscc18/SSCC\346\240\207\347\255\276\346\211\223\345\215\260.html"
+- "test-sscc18/SSCC\346\240\207\347\255\276\346\211\223\345\215\260\347\250\213\345\272\217_0908.zip"
+- test-sscc18/assets/JsBarcode.all.min.js
+- test-sscc18/gs1_official.zpl
+- test-sscc18/gs1_test.zpl
+- test-sscc18/gs1_v1_amp.zpl
+- test-sscc18/gs1_v2_raw.zpl
+- test-sscc18/gs1_v3_20digit.zpl
