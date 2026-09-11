@@ -304,3 +304,13 @@
 - test-sscc18/gs1_v1_amp.zpl
 - test-sscc18/gs1_v2_raw.zpl
 - test-sscc18/gs1_v3_20digit.zpl
+---
+### 2026-09-11 09:46 | 7f53ed5 (master)
+- **提交**: 清理测试ZPL文件
+- **作者**: kids0cn
+- **文件**: 5 个文件变更
+- .hermes-progress
+- test-sscc18/gs1_test.zpl
+- test-sscc18/gs1_v1_amp.zpl
+- test-sscc18/gs1_v2_raw.zpl
+- test-sscc18/gs1_v3_20digit.zpl

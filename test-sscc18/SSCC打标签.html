@@ -343,8 +343,8 @@
                     <select id="barcodeWidth">
                         <option value="1">1 (窄)</option>
                         <option value="2">2</option>
-                        <option value="3" selected>3 (标准)</option>
-                        <option value="4">4</option>
+                        <option value="3">3 (标准)</option>
+                        <option value="4" selected>4</option>
                         <option value="5">5 (宽)</option>
                     </select>
                 </div>
@@ -352,7 +352,7 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>X 偏移 (mm) <span style="font-weight:normal;color:#999;font-size:11px;">×8=dots</span></label>
-                    <input type="number" id="barcodeX" value="2" min="0" max="100" step="0.5">
+                    <input type="number" id="barcodeX" value="10" min="0" max="100" step="0.5">
                 </div>
                 <div class="form-group">
                     <label>Y 偏移 (mm) <span style="font-weight:normal;color:#999;font-size:11px;">×8=dots</span></label>
@@ -406,7 +406,7 @@ const defaultSettings = {
     autoPrint: true,
     labelSize: '102x63', customW: 102, customH: 63,
     orientation: 'landscape', density: '16', printCopies: '4',
-    barcodeHeight: '25', barcodeWidth: '3', barcodeX: '2', barcodeY: '20',
+    barcodeHeight: '25', barcodeWidth: '4', barcodeX: '10', barcodeY: '20',
     hrFontSize: '30', dateFontSize: '16',
     textYOffset: '0', showDate: 'no'
 };
@@ -415,11 +415,14 @@ function loadSettings() {
     try {
         const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
         if (!saved) return { ...defaultSettings };
-        // v2 迁移：偏移量从 dots 改为 mm（旧值是整数且偏大）
-        if (Number.isInteger(Number(saved.barcodeX)) && Number(saved.barcodeX) >= 10) {
-            saved.barcodeX = String(Number(saved.barcodeX) / 8);
-            saved.barcodeY = String(Number(saved.barcodeY) / 8);
-            saved.textYOffset = String(Number(saved.textYOffset || 0) / 8);
+        // v2 迁移：偏移量从 dots 改为 mm（只执行一次）
+        if (!saved._migratedV2) {
+            if (Number(saved.barcodeX) > 10 || Number(saved.barcodeY) > 10) {
+                saved.barcodeX = String(Number(saved.barcodeX) / 8);
+                saved.barcodeY = String(Number(saved.barcodeY) / 8);
+                saved.textYOffset = String(Number(saved.textYOffset || 0) / 8);
+            }
+            saved._migratedV2 = true;
             localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved));
         }
         return { ...defaultSettings, ...saved };
@@ -437,7 +440,7 @@ function getSettings() {
     return {
         ...s,
         labelW: lw, labelH: lh,
-        labelWidthDots: Math.min(Math.round(lw * DOTS), 815),
+        labelWidthDots: Math.round(lw * DOTS),
         labelHeightDots: Math.round(lh * DOTS),
         bcHeightDots: Math.round((Number(s.barcodeHeight)||25) * DOTS),
         bcWidth: Number(s.barcodeWidth)||3,
@@ -571,22 +574,22 @@ function getDefaultSSCC18() {
 function generateSSCC18Zpl(code) {
     const s = getSettings();
     const cx = Math.round(s.labelWidthDots / 2);
-    let z = '^XA\n^CI28\n^JMA\n^SEE:GB18030.DAT^FS\n^CWZ,E:SIMSUN.FNT\n';
+    let z = '^XA\n^CI28\n^JMA\n';
     z += '^MD' + s.density + '\n^LL' + s.labelHeightDots + '\n^PW' + s.labelWidthDots + '\n';
 
     let y = s.bcY;
-    // GS1-128: >8 = FNC1, N=关闭打印机人可读(我们自己打), Y=UCC/EAN模式, Y=额外高度
-    z += '^FO' + s.bcX + ',' + y + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,Y,Y\n^FD>8' + code + '^FS\n';
+    // GS1-128: >;>8 = FNC1，后面跟20位完整数据
+    z += '^FO' + s.bcX + ',' + y + '\n^BY' + s.bcWidth + '\n^BCN,' + s.bcHeightDots + ',N,Y,Y\n^FD>;>8' + '00' + code + '^FS\n';
 
     // 人可读文字：(00) + 18位，放在条码下方
     const hr = '(00)' + code;
     const hrY = y + s.bcHeightDots + 8 + s.textYOffset;
-    z += '^FO' + (cx - Math.round(hr.length * s.hrFontSize * 0.35)) + ',' + hrY + '\n^A0,N' + s.hrFontSize + '\n^FD' + hr + '^FS\n';
+    z += '^FO' + (cx - Math.round(hr.length * s.hrFontSize * 0.35)) + ',' + hrY + '\n^A0N,' + s.hrFontSize + '\n^FD' + hr + '^FS\n';
 
     if (s.showDate === 'yes') {
         const d = new Date(); const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
         const dy = hrY + s.hrFontSize + 6;
-        z += '^FO' + (cx - Math.round(ds.length * s.dateFontSize * 0.35)) + ',' + dy + '\n^A0,N' + s.dateFontSize + '\n^FD' + ds + '^FS\n';
+        z += '^FO' + (cx - Math.round(ds.length * s.dateFontSize * 0.35)) + ',' + dy + '\n^A0N,' + s.dateFontSize + '\n^FD' + ds + '^FS\n';
     }
     return z + '^XZ\n';
 }
